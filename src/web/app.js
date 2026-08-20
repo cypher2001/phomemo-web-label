@@ -66,8 +66,17 @@ import {
   evaluateExpressions,
   generateSeries,
   seriesPreview,
+  substituteLongestValues,
   MAX_SERIES_COUNT,
-} from './templates.js?v=102';
+} from './templates.js?v=103';
+import {
+  UNITS,
+  isInches,
+  toMm,
+  formatLength,
+  formatSize,
+  inputStep,
+} from './units.js?v=1';
 import {
   ZOOM,
   TEXT,
@@ -82,6 +91,7 @@ import {
   STORAGE_KEYS,
   M_SERIES_LABEL_SIZES,
   M_SERIES_ROUND_LABELS,
+  INCH_LABEL_SIZES,
   D_SERIES_LABEL_SIZES,
   D_SERIES_CONTINUOUS_SIZES,
   D_SERIES_ROUND_LABELS,
@@ -171,6 +181,7 @@ const state = {
     copies: 1,        // Number of copies
     feed: 32,         // Feed after print in dots (8 dots = 1mm)
     printerModel: 'auto',  // 'auto', 'narrow-48', 'mini-54', 'wide-72', 'mid-76', 'wide-81', 'd-series'
+    units: UNITS.MM,       // Display unit for label dimensions: 'mm' or 'in'
   },
   // Template state
   templateFields: [],     // Detected field names from elements
@@ -178,6 +189,7 @@ const state = {
   selectedRecords: [],    // Indices of selected records for printing
   currentPreviewIndex: 0, // Current label index in full preview
   seriesConfig: {},       // Series generator settings, keyed by field name
+  worstCasePreview: false, // Render each element's longest value, for sizing
   // Inline text editing state
   editingTextId: null,    // ID of text element being inline-edited
   // Undo/Redo history
@@ -762,6 +774,49 @@ function updatePrinterInfoFromQuery(field, value, allInfo) {
 }
 
 /**
+ * Printable width of a printer in millimetres
+ *
+ * The raster width is expressed in bytes of 8 dots, and the canvas runs at
+ * 8 dots per mm, so the byte count and the width in mm are the same number.
+ * @param {string} deviceName - BLE device name
+ * @param {string} model - Printer model override
+ * @returns {number} - Printable width in mm
+ */
+function getPrintableWidthMm(deviceName, model) {
+  return getPrinterWidthBytes(deviceName, model);
+}
+
+/**
+ * Inch label stock the given printer is wide enough to print
+ * @param {string} deviceName - BLE device name
+ * @param {string} model - Printer model override
+ * @returns {Object} - Subset of INCH_LABEL_SIZES, empty unless in inch mode
+ */
+function fittingInchSizes(deviceName, model) {
+  if (!isInches(getUnit())) return {};
+
+  // Half a millimetre of slack, so 101.6mm stock still matches a 102mm head
+  const maxWidth = getPrintableWidthMm(deviceName, model) + 0.5;
+  return Object.fromEntries(
+    Object.entries(INCH_LABEL_SIZES).filter(([, size]) => size.width <= maxWidth)
+  );
+}
+
+/**
+ * Append a set of sizes to a size dropdown
+ * @param {HTMLSelectElement} select - Target dropdown
+ * @param {Object} sizes - Map of key to { width, height }
+ */
+function appendSizeOptions(select, sizes) {
+  for (const [key, size] of Object.entries(sizes)) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = formatPresetLabel(size);
+    select.appendChild(option);
+  }
+}
+
+/**
  * Update label size dropdown options based on connected printer type
  * @param {string} deviceName - BLE device name (optional)
  * @param {string} model - Printer model override (optional)
@@ -807,18 +862,32 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
   }
 
   const continuousSizes = isDSeries ? D_SERIES_CONTINUOUS_SIZES : {};
-  LABEL_SIZES = { ...rectSizes, ...roundSizes, ...continuousSizes };
+
+  // In inch mode, lead with real inch stock the printer is wide enough for.
+  // The native metric presets stay available below, relabelled in inches
+  const inchSizes = fittingInchSizes(deviceName, model);
+
+  LABEL_SIZES = { ...inchSizes, ...rectSizes, ...roundSizes, ...continuousSizes };
 
   // Clear existing options (except custom)
   while (select.options.length > 0) {
     select.remove(0);
   }
 
+  // Add inch stock first when the user is working in inches
+  appendSizeOptions(select, inchSizes);
+  if (Object.keys(inchSizes).length > 0) {
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '\u2500\u2500 Metric Sizes \u2500\u2500';
+    select.appendChild(separator);
+  }
+
   // Add rectangular label options
   for (const [key, size] of Object.entries(rectSizes)) {
     const option = document.createElement('option');
     option.value = key;
-    option.textContent = `${size.width}x${size.height}mm`;
+    option.textContent = formatPresetLabel(size);
     select.appendChild(option);
   }
 
@@ -832,7 +901,10 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
     for (const [key, size] of Object.entries(roundSizes)) {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = key; // e.g., "20mm Round"
+      // Keys read "20mm Round"; rebuild the name when displaying inches
+      option.textContent = isInches(getUnit())
+        ? `${formatLength(size.width, getUnit())}in Round`
+        : key;
       select.appendChild(option);
     }
   }
@@ -847,7 +919,7 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
     for (const [key, size] of Object.entries(continuousSizes)) {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = `${size.width}x${size.height}mm (cont.)`;
+      option.textContent = `${formatPresetLabel(size)} (cont.)`;
       select.appendChild(option);
     }
   }
@@ -865,9 +937,12 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
   select.appendChild(multiLabelOption);
 
   // Try to restore current size or pick a sensible default
-  const currentKey = currentSize.round
-    ? `${currentSize.width}mm Round`
-    : `${currentSize.width}x${currentSize.height}`;
+  const currentKey = Object.keys(LABEL_SIZES).find(key => {
+    const size = LABEL_SIZES[key];
+    return size.width === currentSize.width
+      && size.height === currentSize.height
+      && !!size.round === !!currentSize.round;
+  });
   if (currentValue === 'multi-label') {
     // Keep multi-label mode if already in it
     select.value = 'multi-label';
@@ -877,8 +952,16 @@ function updateLabelSizeDropdown(deviceName = '', model = 'auto') {
   } else if (currentValue === 'custom') {
     select.value = 'custom';
     $('#custom-size').classList.remove('hidden');
+  } else if (currentSize.width <= getPrintableWidthMm(deviceName, model) + 0.5) {
+    // No preset matches - typically after a unit change dropped the inch
+    // presets - but the size still prints, so keep it rather than discard it
+    select.value = 'custom';
+    $('#custom-size').classList.remove('hidden');
+    writeDimension('#custom-width', currentSize.width);
+    writeDimension('#custom-height', currentSize.height);
+    if ($('#custom-round')) $('#custom-round').checked = !!currentSize.round;
   } else {
-    // Pick default based on printer type
+    // Size does not fit this printer - fall back to a preset that does
     select.value = defaultKey;
     state.labelSize = { ...LABEL_SIZES[defaultKey] };
     state.renderer.setDimensions(state.labelSize.width, state.labelSize.height, state.zoom, state.labelSize.round || false);
@@ -934,11 +1017,21 @@ function updateMobileLabelSizeDropdown(deviceName = '', model = 'auto') {
     mobileSelect.remove(0);
   }
 
+  // Add inch stock first when the user is working in inches
+  const mobileInchSizes = fittingInchSizes(deviceName, model);
+  appendSizeOptions(mobileSelect, mobileInchSizes);
+  if (Object.keys(mobileInchSizes).length > 0) {
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '\u2500\u2500 Metric \u2500\u2500';
+    mobileSelect.appendChild(separator);
+  }
+
   // Add rectangular labels
   for (const [key, size] of Object.entries(rectSizes)) {
     const option = document.createElement('option');
     option.value = key;
-    option.textContent = `${size.width}x${size.height}mm`;
+    option.textContent = formatPresetLabel(size);
     mobileSelect.appendChild(option);
   }
 
@@ -952,7 +1045,9 @@ function updateMobileLabelSizeDropdown(deviceName = '', model = 'auto') {
     for (const [key, size] of Object.entries(roundSizes)) {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = key;
+      option.textContent = isInches(getUnit())
+        ? `${formatLength(size.width, getUnit())}in Round`
+        : key;
       mobileSelect.appendChild(option);
     }
   }
@@ -967,7 +1062,7 @@ function updateMobileLabelSizeDropdown(deviceName = '', model = 'auto') {
     for (const [key, size] of Object.entries(continuousSizes)) {
       const option = document.createElement('option');
       option.value = key;
-      option.textContent = `${size.width}x${size.height}mm (cont.)`;
+      option.textContent = `${formatPresetLabel(size)} (cont.)`;
       mobileSelect.appendChild(option);
     }
   }
@@ -1108,8 +1203,8 @@ function adjustLabelLength(delta) {
     state.labelSize = { width: newWidth, height: tapeHeight, continuous: state.labelSize.continuous || false };
     $('#label-size').value = 'custom';
     $('#custom-size').classList.remove('hidden');
-    $('#custom-width').value = newWidth;
-    $('#custom-height').value = tapeHeight;
+    writeDimension('#custom-width', newWidth);
+    writeDimension('#custom-height', tapeHeight);
 
     // Update canvas
     state.renderer.setDimensions(newWidth, tapeHeight, state.zoom, false);
@@ -1120,8 +1215,8 @@ function adjustLabelLength(delta) {
     // Sync mobile
     $('#mobile-label-size').value = 'custom';
     $('#mobile-custom-size')?.classList.remove('hidden');
-    $('#mobile-custom-width').value = newWidth;
-    $('#mobile-custom-height').value = tapeHeight;
+    writeDimension('#mobile-custom-width', newWidth);
+    writeDimension('#mobile-custom-height', tapeHeight);
   }
 }
 
@@ -1130,11 +1225,80 @@ function adjustLabelLength(delta) {
  */
 function updatePrintSize() {
   const { width, height, round } = state.labelSize;
-  if (round) {
-    $('#print-size').textContent = `${width}mm round`;
-  } else {
-    $('#print-size').textContent = `${width} x ${height} mm`;
+  const unit = getUnit();
+  $('#print-size').textContent = round
+    ? `${formatLength(width, unit)}${unit} round`
+    : formatSize(width, height, unit);
+}
+
+/**
+ * Current display unit for label dimensions
+ * @returns {string} - 'mm' or 'in'
+ */
+function getUnit() {
+  return state.printSettings.units === UNITS.IN ? UNITS.IN : UNITS.MM;
+}
+
+/**
+ * Read a dimension input, converting the displayed unit back to millimetres
+ * @param {string} selector - Input selector
+ * @param {Function} validate - Validator taking millimetres
+ * @returns {number} - Validated value in millimetres
+ */
+function readDimension(selector, validate) {
+  return validate(toMm($(selector).value, getUnit()));
+}
+
+/**
+ * Write a millimetre value into a dimension input in the display unit
+ * @param {string} selector - Input selector
+ * @param {number} mm - Value in millimetres
+ */
+function writeDimension(selector, mm) {
+  const input = $(selector);
+  if (input) input.value = formatLength(mm, getUnit());
+}
+
+/**
+ * Label a preset size for the size dropdown in the current unit
+ * @param {Object} size - { width, height } in millimetres
+ * @returns {string}
+ */
+function formatPresetLabel(size) {
+  const unit = getUnit();
+  return `${formatLength(size.width, unit)}x${formatLength(size.height, unit)}${unit}`;
+}
+
+/**
+ * Refresh everything that displays or accepts a length after a unit change
+ */
+function updateUnitDisplay() {
+  const unit = getUnit();
+  const step = inputStep(unit);
+
+  // Suffix labels next to dimension inputs
+  $$('[data-unit-label]').forEach(el => { el.textContent = unit; });
+
+  // Dimension inputs: re-express limits, step and current value in the new unit
+  const bounds = [
+    ['#custom-width', LABEL.MIN_WIDTH, LABEL.MAX_WIDTH, state.labelSize.width],
+    ['#custom-height', LABEL.MIN_HEIGHT, LABEL.MAX_HEIGHT, state.labelSize.height],
+    ['#mobile-custom-width', LABEL.MIN_WIDTH, LABEL.MAX_WIDTH, state.labelSize.width],
+    ['#mobile-custom-height', LABEL.MIN_HEIGHT, LABEL.MAX_HEIGHT, state.labelSize.height],
+  ];
+  for (const [selector, minMm, maxMm, valueMm] of bounds) {
+    const input = $(selector);
+    if (!input) continue;
+    input.min = formatLength(minMm, unit);
+    input.max = formatLength(maxMm, unit);
+    input.step = step;
+    input.value = formatLength(valueMm, unit);
   }
+
+  // Preset names and the status-bar readout
+  const deviceName = state.transport?.getDeviceName?.() || '';
+  updateLabelSizeDropdown(deviceName, state.printSettings.printerModel);
+  updatePrintSize();
 }
 
 /**
@@ -1243,10 +1407,19 @@ function zoomToFitIfNeeded() {
  * Render the canvas
  */
 function render() {
+  let elementsToRender = state.elements;
+
+  // Fit check: show the widest value each element will hold. Suspended while
+  // a text element is being edited inline, so the editor shows the real text
+  if (state.worstCasePreview && state.templateData.length > 0 && !state.editingTextId) {
+    elementsToRender = substituteLongestValues(elementsToRender, state.templateData);
+  }
+
   // In print preview mode, evaluate expressions so users see actual values
-  const elementsToRender = state.ditherPreview
-    ? evaluateExpressions(state.elements)
-    : state.elements;
+  if (state.ditherPreview) {
+    elementsToRender = evaluateExpressions(elementsToRender);
+  }
+
   state.renderer.renderAll(elementsToRender, state.selectedIds, state.alignmentGuides);
 }
 
@@ -1309,6 +1482,10 @@ function updateTemplateIndicator() {
     toolbarBtn.classList.add('hidden');
     toolbarDivider.classList.add('hidden');
     templatePanel.classList.add('hidden');
+
+    // Nothing left to preview against
+    state.worstCasePreview = false;
+    updateWorstCaseButton();
   }
 
   // Update data count
@@ -1939,10 +2116,51 @@ function handleGenerateSeries() {
   state.selectedRecords = state.templateData.map((_, i) => i);
   updateTemplateDataTable();
   hideSeriesDialog();
+  render();
 
   const message = `Generated ${records.length} label${records.length !== 1 ? 's' : ''}`;
   showToast(errors.length > 0 ? `${message} - ${errors[0]}` : message, errors.length > 0 ? 'warning' : 'success');
   setStatus(message);
+}
+
+/**
+ * Toggle the worst-case ("fit check") canvas preview
+ */
+function toggleWorstCasePreview() {
+  if (state.templateData.length === 0) {
+    showToast('Generate or import data first - there are no values to size against', 'warning');
+    return;
+  }
+
+  state.worstCasePreview = !state.worstCasePreview;
+  updateWorstCaseButton();
+  render();
+  setStatus(state.worstCasePreview
+    ? 'Fit check ON - showing the longest value for each element'
+    : 'Fit check OFF');
+}
+
+/**
+ * Reflect the fit-check state on its buttons
+ */
+function updateWorstCaseButton() {
+  const on = state.worstCasePreview;
+  // Only classes that also appear in the static markup, so the Tailwind CDN
+  // generates them. The hover variant has to swap too, or it wins on hover
+  const activeClasses = ['bg-purple-600', 'hover:bg-purple-700', 'text-white'];
+  const idleClasses = ['bg-white', 'hover:bg-purple-100', 'text-purple-700'];
+
+  for (const id of ['#template-worst-case', '#mobile-template-worst-case']) {
+    const btn = $(id);
+    if (!btn) continue;
+    btn.classList.remove(...(on ? idleClasses : activeClasses));
+    btn.classList.add(...(on ? activeClasses : idleClasses));
+  }
+
+  for (const id of ['#template-worst-case-label', '#mobile-template-worst-case-label']) {
+    const el = $(id);
+    if (el) el.textContent = on ? 'Showing Longest Values' : 'Show Longest Values';
+  }
 }
 
 /**
@@ -2719,14 +2937,14 @@ function handleLabelSizeChange() {
  * Handle custom size input
  */
 function handleCustomSizeChange() {
-  const w = validateLabelWidth($('#custom-width').value);
+  const w = readDimension('#custom-width', validateLabelWidth);
   const isRound = $('#custom-round').checked;
   const isContinuous = !isRound && !!$('#custom-continuous')?.checked;
-  const h = isRound ? w : validateLabelHeight($('#custom-height').value);
+  const h = isRound ? w : readDimension('#custom-height', validateLabelHeight);
 
   // Sync height input when round is checked
   if (isRound) {
-    $('#custom-height').value = w;
+    writeDimension('#custom-height', w);
     $('#custom-height').disabled = true;
     $('#custom-size-x').classList.add('hidden');
     $('#custom-height').classList.add('hidden');
@@ -2747,8 +2965,8 @@ function handleCustomSizeChange() {
   render();
 
   // Sync to mobile custom inputs
-  if ($('#mobile-custom-width')) $('#mobile-custom-width').value = w;
-  if ($('#mobile-custom-height')) $('#mobile-custom-height').value = h;
+  writeDimension('#mobile-custom-width', w);
+  writeDimension('#mobile-custom-height', h);
   if ($('#mobile-custom-round')) $('#mobile-custom-round').checked = isRound;
   if ($('#mobile-custom-continuous')) $('#mobile-custom-continuous').checked = isContinuous;
 }
@@ -7493,6 +7711,7 @@ function init() {
   const copiesInput = $('#print-copies');
   const feedSelect = $('#print-feed');
   const printerModelSelect = $('#printer-model');
+  const unitsSelect = $('#display-units');
 
   // Load saved print settings from localStorage
   const savedPrintSettings = safeStorageGet('phomymo_print_settings');
@@ -7511,8 +7730,12 @@ function init() {
       copiesInput.value = state.printSettings.copies;
       feedSelect.value = state.printSettings.feed;
       printerModelSelect.value = state.printSettings.printerModel || 'auto';
+      unitsSelect.value = getUnit();
     }
   }
+
+  // Apply the restored unit to every dimension display and input
+  updateUnitDisplay();
 
   // Dither preview toggle (shows exact print output for all elements)
   const ditherPreviewBtn = $('#dither-preview-btn');
@@ -7546,6 +7769,7 @@ function init() {
     copiesInput.value = state.printSettings.copies;
     feedSelect.value = state.printSettings.feed;
     printerModelSelect.value = state.printSettings.printerModel || 'auto';
+    unitsSelect.value = getUnit();
     printSettingsDialog.classList.remove('hidden');
   });
 
@@ -7558,12 +7782,14 @@ function init() {
   });
 
   $('#print-settings-reset').addEventListener('click', () => {
-    state.printSettings = { density: 6, copies: 1, feed: 32, printerModel: 'auto' };
+    state.printSettings = { density: 6, copies: 1, feed: 32, printerModel: 'auto', units: UNITS.MM };
     densitySlider.value = 6;
     densityValue.textContent = '6';
     copiesInput.value = 1;
     feedSelect.value = 32;
     printerModelSelect.value = 'auto';
+    unitsSelect.value = UNITS.MM;
+    updateUnitDisplay();
   });
 
   $('#print-settings-save').addEventListener('click', () => {
@@ -7571,13 +7797,14 @@ function init() {
     state.printSettings.copies = Math.max(PRINT.MIN_COPIES, Math.min(PRINT.MAX_COPIES, parseInt(copiesInput.value) || PRINT.DEFAULT_COPIES));
     state.printSettings.feed = parseInt(feedSelect.value);
     state.printSettings.printerModel = printerModelSelect.value;
+    state.printSettings.units = unitsSelect.value === UNITS.IN ? UNITS.IN : UNITS.MM;
 
     // Save to localStorage
     safeStorageSet('phomymo_print_settings', safeJsonStringify(state.printSettings));
 
-    // Update UI based on printer model (for P12 length buttons and label sizes)
-    const deviceName = state.transport?.getDeviceName?.() || '';
-    updateLabelSizeDropdown(deviceName, state.printSettings.printerModel);
+    // Update UI based on printer model (for P12 length buttons and label sizes).
+    // updateUnitDisplay rebuilds the size dropdown, so it covers both changes
+    updateUnitDisplay();
     updateLengthAdjustButtons();
 
     printSettingsDialog.classList.add('hidden');
@@ -8284,6 +8511,10 @@ function init() {
       clearTemplateData();
     }
   });
+
+  // Fit check (worst-case value preview)
+  $('#template-worst-case').addEventListener('click', toggleWorstCasePreview);
+  $('#mobile-template-worst-case')?.addEventListener('click', toggleWorstCasePreview);
 
   // Series generator
   $('#template-generate-series').addEventListener('click', showSeriesDialog);

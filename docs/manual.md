@@ -183,6 +183,18 @@ Click **Generate** to fill the table, then **Preview Labels** to check the resul
 
 Because the text and the QR code both use `{{SN}}`, the printed number and the code it encodes stay in step on every label.
 
+### Checking That Values Fit
+
+A field renders on the canvas as `{{SN}}` - six characters, regardless of what the real value looks like. Size your text against that and a ten-digit serial will overflow the label without warning.
+
+Open the template panel and click **Show Longest Values** under Fit Check. Every templated element switches to the longest value it will ever hold, drawn from the records you have loaded, so what you see is the worst case. Resize the text until that fits and every label in the run fits.
+
+![Fit check on the canvas](screenshots/08-fit-check/01-longest-value-on-canvas.png)
+
+Each element is measured on its own, so a label carrying two different fields shows the longest value for each. The properties panel keeps showing the real `{{SN}}` text, so you can still edit the field while the canvas previews the data. Click the button again to switch back.
+
+Fit Check needs data to measure - generate a series or import a CSV first.
+
 ### Previewing Labels
 
 Click **Preview** to see all your labels rendered with the data. Click any thumbnail to see it full-size.
@@ -200,6 +212,14 @@ Click **Print All** to print every label in sequence. A progress indicator shows
 Click the **gear icon** in the toolbar to open print settings.
 
 ![Print settings dialog](screenshots/05-print-settings/01-print-settings-dialog.png)
+
+### Millimetres or Inches
+
+Phomymo works in millimetres by default. If your label stock is sold in inches, set **Units** to `Inches (in)` in Print Settings.
+
+The size dropdown then leads with common inch stock - 4x6, 4x3, 4x2, 3x2, 2.25x1.25, 2x1, 1.5x1, 1x1 and 1x0.5 - filtered to the sizes your printer is wide enough to print, so a 48mm mini printer will not offer you a 4-inch label. Your printer's metric presets stay below, relabelled in inches. Custom sizes accept decimals, so a 2.25 inch label can be typed as `2.25`.
+
+The setting only changes how sizes are displayed and entered. Labels are stored and printed at exactly the same dimensions either way, so switching units never resizes a design.
 
 ### Choosing a Printer Model
 

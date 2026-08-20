@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, dismissInfoDialog, deselectAll, screenshot, elementScreenshot } from './helpers/app';
+import { waitForAppReady, dismissInfoDialog, dismissCompatibilityWarning, deselectAll, screenshot, elementScreenshot } from './helpers/app';
 
 const CH = '03-element-properties';
 
@@ -7,6 +7,7 @@ test.describe.serial('Element Properties', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await waitForAppReady(page);
+    await dismissCompatibilityWarning(page);
     await dismissInfoDialog(page);
   });
 

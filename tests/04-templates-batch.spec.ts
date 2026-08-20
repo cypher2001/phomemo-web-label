@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, dismissInfoDialog, screenshot } from './helpers/app';
+import { waitForAppReady, dismissInfoDialog, dismissCompatibilityWarning, screenshot } from './helpers/app';
 import path from 'path';
 
 const CH = '04-templates-batch';
@@ -8,6 +8,7 @@ test.describe.serial('Templates and Batch Printing', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await waitForAppReady(page);
+    await dismissCompatibilityWarning(page);
     await dismissInfoDialog(page);
   });
 

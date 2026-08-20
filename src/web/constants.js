@@ -44,7 +44,8 @@ export const ELEMENT = {
 // =============================================================================
 export const LABEL = {
   MIN_WIDTH: 10,
-  MAX_WIDTH: 100,
+  // 102mm covers the widest supported stock (PM-241 4-inch shipping labels)
+  MAX_WIDTH: 102,
   MIN_HEIGHT: 10,
   MAX_HEIGHT: 200,
 };
@@ -212,6 +213,21 @@ export const TAPE_LABEL_SIZES = {
   '30x15': { width: 30, height: 15, tapeWidth: 15 },
   '22x15': { width: 22, height: 15, tapeWidth: 15 },
   '15x15': { width: 15, height: 15, tapeWidth: 15 },
+};
+
+// Common US label stock, sized in inches but stored in mm (the internal unit).
+// Offered in the size dropdown when the display unit is set to inches, filtered
+// to the sizes the connected printer is actually wide enough to print.
+export const INCH_LABEL_SIZES = {
+  '4x6in':       { width: 101.6, height: 152.4, inch: true },
+  '4x3in':       { width: 101.6, height: 76.2,  inch: true },
+  '4x2in':       { width: 101.6, height: 50.8,  inch: true },
+  '3x2in':       { width: 76.2,  height: 50.8,  inch: true },
+  '2.25x1.25in': { width: 57.15, height: 31.75, inch: true },
+  '2x1in':       { width: 50.8,  height: 25.4,  inch: true },
+  '1.5x1in':     { width: 38.1,  height: 25.4,  inch: true },
+  '1x1in':       { width: 25.4,  height: 25.4,  inch: true },
+  '1x0.5in':     { width: 25.4,  height: 12.7,  inch: true },
 };
 
 // PM-241 series printers (PM-241-BT) - 4-inch (102mm) shipping label printer

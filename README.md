@@ -31,11 +31,13 @@ python3 -m http.server 8080
 
 **Editing** - Drag to move, corner/edge resize handles, rotation. Multi-select (Shift+click), grouping (Ctrl/Cmd+G), undo/redo, keyboard nudge, layer ordering, clipboard image paste (Ctrl/Cmd+V).
 
-**Label Sizes** - Preset sizes for each printer type, round labels, custom dimensions. Auto-switches based on connected printer. Multi-label rolls with clone or individual zone modes.
+**Label Sizes** - Preset sizes for each printer type, round labels, custom dimensions. Auto-switches based on connected printer. Multi-label rolls with clone or individual zone modes. Work in millimetres or inches - switch in Print Settings to get common inch stock (4x6, 2x1, 2.25x1.25 and more) as presets and to enter fractional inch sizes directly.
 
 **Templates & Batch Printing** - Variable fields with `{{FieldName}}` syntax, CSV import, preview grid, and batch printing with progress tracking.
 
 **Incremental Numbering** - Generate a run of sequentially numbered labels without a CSV. Set a count, start, step, zero-padding, and prefix/suffix per field, and every element sharing that field - text, barcode, or QR code - increments together.
+
+**Fit Check** - Template fields render as `{{SN}}` on the canvas, which says nothing about how wide the real value will be. Fit Check swaps in the longest value each element will ever hold, so text sized against it fits every label in the run.
 
 **Instant Expressions** - Dynamic values at print time using `[[expression]]` syntax: `[[date]]`, `[[time]]`, `[[datetime]]`, or custom formats like `[[date|MM/DD/YYYY]]`. Works in text, barcodes, and QR codes.
 

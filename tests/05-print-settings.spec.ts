@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, dismissInfoDialog, screenshot } from './helpers/app';
+import { waitForAppReady, dismissInfoDialog, dismissCompatibilityWarning, screenshot } from './helpers/app';
 
 const CH = '05-print-settings';
 
@@ -7,6 +7,7 @@ test.describe.serial('Print Settings', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await waitForAppReady(page);
+    await dismissCompatibilityWarning(page);
     await dismissInfoDialog(page);
   });
 

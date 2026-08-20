@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, dismissInfoDialog, screenshot } from './helpers/app';
+import { waitForAppReady, dismissInfoDialog, dismissCompatibilityWarning, screenshot } from './helpers/app';
 
 const CH = '06-custom-printers';
 
@@ -7,6 +7,7 @@ test.describe.serial('Custom Printer Definitions', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await waitForAppReady(page);
+    await dismissCompatibilityWarning(page);
     await dismissInfoDialog(page);
     // Clear any previous custom printers
     await page.evaluate(() => localStorage.removeItem('phomymo_custom_printers'));

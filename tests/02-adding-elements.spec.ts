@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppReady, dismissInfoDialog, deselectAll, screenshot } from './helpers/app';
+import { waitForAppReady, dismissInfoDialog, dismissCompatibilityWarning, deselectAll, screenshot } from './helpers/app';
 import path from 'path';
 
 const CH = '02-adding-elements';
@@ -8,6 +8,7 @@ test.describe.serial('Adding Elements', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'networkidle' });
     await waitForAppReady(page);
+    await dismissCompatibilityWarning(page);
     await dismissInfoDialog(page);
   });
 

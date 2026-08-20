@@ -97,7 +97,7 @@ export function validateHeight(value, maxHeight = Infinity) {
  * @returns {number} Valid label width
  */
 export function validateLabelWidth(value) {
-  return parseIntClamped(value, 40, LABEL.MIN_WIDTH, LABEL.MAX_WIDTH);
+  return parseFloatClamped(value, 40, LABEL.MIN_WIDTH, LABEL.MAX_WIDTH);
 }
 
 /**
@@ -106,7 +106,7 @@ export function validateLabelWidth(value) {
  * @returns {number} Valid label height
  */
 export function validateLabelHeight(value) {
-  return parseIntClamped(value, 30, LABEL.MIN_HEIGHT, LABEL.MAX_HEIGHT);
+  return parseFloatClamped(value, 30, LABEL.MIN_HEIGHT, LABEL.MAX_HEIGHT);
 }
 
 /**

@@ -564,3 +564,65 @@ export function seriesPreview(config, count, sampleSize = 3) {
   }
   return preview;
 }
+
+/**
+ * Length of an element's templated strings once a record is substituted in
+ * @param {Object} el - Label element
+ * @param {Object} record - Record to substitute
+ * @returns {number} - Combined character count of the substituted strings
+ */
+function substitutedLength(el, record) {
+  let total = 0;
+  if (el.text) total += substituteString(el.text, record).length;
+  if (el.barcodeData) total += substituteString(el.barcodeData, record).length;
+  if (el.qrData) total += substituteString(el.qrData, record).length;
+  return total;
+}
+
+/**
+ * Substitute each element with the record that makes it longest
+ *
+ * Used for worst-case sizing: `{{SN}}` renders as six characters, but the
+ * real value might be far wider. Elements are considered one at a time, so
+ * each shows the longest value it will ever have to hold - if the design
+ * fits like this, every record fits.
+ *
+ * @param {Array} elements - Array of label elements
+ * @param {Array} records - Records to choose from
+ * @returns {Array} - New array of elements with worst-case values
+ */
+export function substituteLongestValues(elements, records) {
+  if (!records || records.length === 0) {
+    return elements.map(el => ({ ...el }));
+  }
+
+  return elements.map(el => {
+    // Elements without fields are unaffected by the data
+    if (!hasFieldsInElement(el)) return { ...el };
+
+    let worst = records[0];
+    let worstLength = -1;
+    for (const record of records) {
+      const length = substitutedLength(el, record);
+      if (length > worstLength) {
+        worstLength = length;
+        worst = record;
+      }
+    }
+
+    return substituteFields([el], worst)[0];
+  });
+}
+
+/**
+ * Check whether a single element contains any template fields
+ * @param {Object} el - Label element
+ * @returns {boolean}
+ */
+function hasFieldsInElement(el) {
+  const fields = new Set();
+  if (el.text) extractFromString(el.text, fields);
+  if (el.barcodeData) extractFromString(el.barcodeData, fields);
+  if (el.qrData) extractFromString(el.qrData, fields);
+  return fields.size > 0;
+}

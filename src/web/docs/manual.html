@@ -447,6 +447,26 @@ alt="Generated records" />
 </figure>
 <p>Because the text and the QR code both use <code>{{SN}}</code>, the
 printed number and the code it encodes stay in step on every label.</p>
+<h3 id="checking-that-values-fit">Checking That Values Fit</h3>
+<p>A field renders on the canvas as <code>{{SN}}</code> - six characters,
+regardless of what the real value looks like. Size your text against that
+and a ten-digit serial will overflow the label without warning.</p>
+<p>Open the template panel and click <strong>Show Longest Values</strong>
+under Fit Check. Every templated element switches to the longest value it
+will ever hold, drawn from the records you have loaded, so what you see is
+the worst case. Resize the text until that fits and every label in the run
+fits.</p>
+<figure>
+<img src="screenshots/08-fit-check/01-longest-value-on-canvas.png"
+alt="Fit check on the canvas" />
+<figcaption aria-hidden="true">Fit check on the canvas</figcaption>
+</figure>
+<p>Each element is measured on its own, so a label carrying two different
+fields shows the longest value for each. The properties panel keeps showing
+the real <code>{{SN}}</code> text, so you can still edit the field while the
+canvas previews the data. Click the button again to switch back.</p>
+<p>Fit Check needs data to measure - generate a series or import a CSV
+first.</p>
 <h3 id="previewing-labels">Previewing Labels</h3>
 <p>Click <strong>Preview</strong> to see all your labels rendered with
 the data. Click any thumbnail to see it full-size.</p>
@@ -468,6 +488,19 @@ settings.</p>
 alt="Print settings dialog" />
 <figcaption aria-hidden="true">Print settings dialog</figcaption>
 </figure>
+<h3 id="millimetres-or-inches">Millimetres or Inches</h3>
+<p>Phomymo works in millimetres by default. If your label stock is sold in
+inches, set <strong>Units</strong> to <code>Inches (in)</code> in Print
+Settings.</p>
+<p>The size dropdown then leads with common inch stock - 4x6, 4x3, 4x2,
+3x2, 2.25x1.25, 2x1, 1.5x1, 1x1 and 1x0.5 - filtered to the sizes your
+printer is wide enough to print, so a 48mm mini printer will not offer you a
+4-inch label. Your printer's metric presets stay below, relabelled in
+inches. Custom sizes accept decimals, so a 2.25 inch label can be typed as
+<code>2.25</code>.</p>
+<p>The setting only changes how sizes are displayed and entered. Labels are
+stored and printed at exactly the same dimensions either way, so switching
+units never resizes a design.</p>
 <h3 id="choosing-a-printer-model">Choosing a Printer Model</h3>
 <p>The <strong>Printer Model</strong> dropdown lists all supported
 printers. The default is <strong>Auto-detect</strong>, which identifies
