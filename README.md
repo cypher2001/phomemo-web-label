@@ -149,7 +149,7 @@ Libraries: [JsBarcode](https://github.com/lindell/JsBarcode), [QRCode.js](https:
 
 ## Support the Project
 
-If Phomymo is useful to you, consider [making a donation](https://donate.stripe.com/7sY7sMese0182tXgn8eAg00) to support ongoing development.
+If Phomymo is useful to you, consider [supporting HackerHomeLab on Ko-fi](https://ko-fi.com/hackerhomelab) to help fund ongoing development.
 
 ## License
 
