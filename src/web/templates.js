@@ -465,3 +465,102 @@ function formatDateTime(date, format) {
     .replace(/a/g, ampm.toLowerCase())
     .replace(/Z/g, timezone);
 }
+
+// =============================================================================
+// SERIES GENERATION - incrementing values for sequential label printing
+// =============================================================================
+
+// Maximum records a single series can generate (matches CSV import limit)
+export const MAX_SERIES_COUNT = 10000;
+
+/**
+ * Compute the value of one field at one position in a series
+ * @param {Object} config - Field config (see generateSeries)
+ * @param {number} index - Zero-based position in the series
+ * @returns {string} - The value for this position
+ */
+export function seriesValue(config, index) {
+  if (config.mode === 'fixed') {
+    return String(config.value ?? '');
+  }
+
+  const start = Number(config.start) || 0;
+  const step = config.step === undefined || config.step === '' ? 1 : Number(config.step);
+  const pad = Math.max(0, Number(config.pad) || 0);
+  const prefix = config.prefix ?? '';
+  const suffix = config.suffix ?? '';
+
+  const n = start + (Number.isFinite(step) ? step : 1) * index;
+  // Pad the digits only, so negative numbers keep their sign in front
+  const digits = String(Math.abs(n)).padStart(pad, '0');
+  const number = (n < 0 ? '-' : '') + digits;
+
+  return `${prefix}${number}${suffix}`;
+}
+
+/**
+ * Generate a batch of records with incrementing values
+ *
+ * Each config describes how one template field advances across the batch:
+ *   { field: 'SN', mode: 'number', start: 1, step: 1, pad: 3, prefix: '', suffix: '' }
+ *   { field: 'Batch', mode: 'fixed', value: 'A' }
+ *
+ * @param {Array} configs - One config per field
+ * @param {number} count - Number of records to generate
+ * @returns {Object} - { records: Array, errors: Array }
+ */
+export function generateSeries(configs, count) {
+  const errors = [];
+  const n = Math.floor(Number(count));
+
+  if (!Number.isFinite(n) || n < 1) {
+    return { records: [], errors: ['Count must be at least 1'] };
+  }
+
+  let total = n;
+  if (total > MAX_SERIES_COUNT) {
+    total = MAX_SERIES_COUNT;
+    errors.push(`Series truncated: maximum ${MAX_SERIES_COUNT} labels`);
+  }
+
+  const active = (configs || []).filter(c => c && c.field);
+  if (active.length === 0) {
+    return { records: [], errors: ['No fields to generate'] };
+  }
+
+  const records = [];
+  for (let i = 0; i < total; i++) {
+    const record = {};
+    for (const config of active) {
+      record[config.field] = seriesValue(config, i);
+    }
+    records.push(record);
+  }
+
+  return { records, errors };
+}
+
+/**
+ * Build a short human-readable sample of a series, e.g. "001, 002, 003 ... 100"
+ * @param {Object} config - Field config
+ * @param {number} count - Total records in the series
+ * @param {number} sampleSize - How many leading values to show
+ * @returns {string}
+ */
+export function seriesPreview(config, count, sampleSize = 3) {
+  const total = Math.min(Math.max(Math.floor(Number(count)) || 0, 0), MAX_SERIES_COUNT);
+  if (total === 0) return '';
+
+  const shown = Math.min(total, sampleSize);
+  const values = [];
+  for (let i = 0; i < shown; i++) {
+    values.push(seriesValue(config, i));
+  }
+
+  let preview = values.join(', ');
+  if (total > shown) {
+    const last = seriesValue(config, total - 1);
+    preview += (total > shown + 1 ? ' ... ' : ', ') + last;
+  }
+  return preview;
+}

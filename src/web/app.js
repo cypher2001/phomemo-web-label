@@ -64,7 +64,10 @@ import {
   createEmptyRecord,
   hasExpressions,
   evaluateExpressions,
-} from './templates.js?v=101';
+  generateSeries,
+  seriesPreview,
+  MAX_SERIES_COUNT,
+} from './templates.js?v=102';
 import {
   ZOOM,
   TEXT,
@@ -174,6 +177,7 @@ const state = {
   templateData: [],       // Array of data records for batch printing
   selectedRecords: [],    // Indices of selected records for printing
   currentPreviewIndex: 0, // Current label index in full preview
+  seriesConfig: {},       // Series generator settings, keyed by field name
   // Inline text editing state
   editingTextId: null,    // ID of text element being inline-edited
   // Undo/Redo history
@@ -1572,10 +1576,10 @@ function updateTemplateDataTable() {
           data-index="${idx}" ${state.selectedRecords.includes(idx) ? 'checked' : ''}>
       </td>
       <td class="px-2 py-1 text-xs text-gray-400">${idx + 1}</td>
-      ${state.templateFields.map(f => `
+      ${state.templateFields.map(() => `
         <td class="px-2 py-1">
           <input type="text" class="template-field-input w-full text-base border-0 bg-transparent p-0 focus:ring-1 focus:ring-blue-500 rounded"
-            data-index="${idx}" data-field="${escapeHtml(f)}" value="${escapeHtml(record[f] || '')}">
+            data-index="${idx}">
         </td>
       `).join('')}
       <td class="px-2 py-1 text-right">
@@ -1583,6 +1587,17 @@ function updateTemplateDataTable() {
       </td>
     </tr>
   `).join('');
+
+  // Field names and cell values go in through the DOM rather than the markup,
+  // so a quote in either cannot break out of the attribute
+  Array.from(tableBody.querySelectorAll('tr')).forEach((row, idx) => {
+    const record = state.templateData[idx];
+    Array.from(row.querySelectorAll('.template-field-input')).forEach((cell, col) => {
+      const field = state.templateFields[col];
+      cell.dataset.field = field;
+      cell.value = record[field] || '';
+    });
+  });
 
   recordCount.textContent = `${state.templateData.length} record${state.templateData.length !== 1 ? 's' : ''}`;
 
@@ -1694,6 +1709,240 @@ function importCSVData(csvString) {
   state.selectedRecords = mappedRecords.map((_, i) => i);
   updateTemplateDataTable();
   setStatus(`Imported ${mappedRecords.length} records`);
+}
+
+// =============================================================================
+// SERIES GENERATOR - fill the data table with incrementing values
+// =============================================================================
+
+// Starting point for a field the user has not configured yet
+const SERIES_DEFAULTS = {
+  mode: 'number',  // 'number' = increments per label, 'fixed' = same on every label
+  start: 1,
+  step: 1,
+  pad: 0,
+  prefix: '',
+  suffix: '',
+  value: '',
+};
+
+/**
+ * Get the series config for a field, falling back to defaults
+ * @param {string} field - Field name
+ * @returns {Object} - Series config
+ */
+function getSeriesConfig(field) {
+  return { field, ...SERIES_DEFAULTS, ...(state.seriesConfig[field] || {}) };
+}
+
+/**
+ * Show the series generator dialog
+ */
+function showSeriesDialog() {
+  if (state.templateFields.length === 0) {
+    showToast('Add a {{field}} to a text or QR element first', 'warning');
+    return;
+  }
+  renderSeriesFields();
+  $('#series-dialog').classList.remove('hidden');
+}
+
+/**
+ * Hide the series generator dialog
+ */
+function hideSeriesDialog() {
+  $('#series-dialog').classList.add('hidden');
+}
+
+/**
+ * Render one configuration row per detected template field
+ */
+function renderSeriesFields() {
+  const container = $('#series-fields');
+  const input = 'w-full px-2 py-1 text-base border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400';
+  const label = 'block text-[10px] text-gray-400 uppercase tracking-wide mb-0.5';
+
+  // The markup carries no user data - field names and values are assigned
+  // through the DOM below, which keeps quotes in either from breaking out
+  const rowTemplate = `
+    <div class="series-field border border-gray-200 rounded-lg p-3">
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <span class="series-field-name text-sm font-medium text-purple-700"></span>
+        <select class="series-mode px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400">
+          <option value="number">Incrementing number</option>
+          <option value="fixed">Same on every label</option>
+        </select>
+      </div>
+
+      <div class="series-number-opts grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div>
+          <label class="${label}">Start</label>
+          <input type="number" step="1" class="series-start ${input}">
+        </div>
+        <div>
+          <label class="${label}">Step</label>
+          <input type="number" step="1" class="series-step ${input}">
+        </div>
+        <div>
+          <label class="${label}" title="Pad with leading zeros to this many digits">Digits</label>
+          <input type="number" min="0" max="12" class="series-pad ${input}">
+        </div>
+        <div>
+          <label class="${label}">Prefix</label>
+          <input type="text" class="series-prefix ${input}">
+        </div>
+        <div>
+          <label class="${label}">Suffix</label>
+          <input type="text" class="series-suffix ${input}">
+        </div>
+      </div>
+
+      <div class="series-fixed-opts">
+        <label class="${label}">Value</label>
+        <input type="text" class="series-value ${input}">
+      </div>
+
+      <p class="series-preview text-xs text-gray-500 mt-2 font-mono truncate"></p>
+    </div>
+  `;
+
+  container.innerHTML = rowTemplate.repeat(state.templateFields.length);
+
+  Array.from($$('#series-fields .series-field')).forEach((row, i) => {
+    const field = state.templateFields[i];
+    const c = getSeriesConfig(field);
+    const isFixed = c.mode === 'fixed';
+
+    row.dataset.field = field;
+    row.querySelector('.series-field-name').textContent = `{{${field}}}`;
+    row.querySelector('.series-mode').value = c.mode;
+    row.querySelector('.series-start').value = String(c.start);
+    row.querySelector('.series-step').value = String(c.step);
+    row.querySelector('.series-pad').value = String(c.pad);
+    row.querySelector('.series-prefix').value = c.prefix;
+    row.querySelector('.series-suffix').value = c.suffix;
+    row.querySelector('.series-value').value = c.value;
+    row.querySelector('.series-number-opts').classList.toggle('hidden', isFixed);
+    row.querySelector('.series-fixed-opts').classList.toggle('hidden', !isFixed);
+  });
+
+  bindSeriesFieldEvents();
+  updateSeriesPreviews();
+}
+
+/**
+ * Bind input handlers for the series configuration rows
+ */
+function bindSeriesFieldEvents() {
+  Array.from($$('#series-fields .series-field')).forEach(row => {
+    // Mode select toggles which option group is visible
+    row.querySelector('.series-mode').addEventListener('change', (e) => {
+      const isFixed = e.target.value === 'fixed';
+      row.querySelector('.series-number-opts').classList.toggle('hidden', isFixed);
+      row.querySelector('.series-fixed-opts').classList.toggle('hidden', !isFixed);
+      updateSeriesPreviews();
+    });
+
+    // Any value change refreshes the previews
+    Array.from(row.querySelectorAll('input')).forEach(input => {
+      input.addEventListener('input', updateSeriesPreviews);
+    });
+  });
+}
+
+/**
+ * Read the current series configuration out of the dialog
+ * @returns {Array} - One config per field
+ */
+function readSeriesConfigs() {
+  return Array.from($$('#series-fields .series-field')).map(row => {
+    const val = (sel) => row.querySelector(sel).value;
+
+    const start = parseInt(val('.series-start'), 10);
+    const step = parseInt(val('.series-step'), 10);
+    const pad = parseInt(val('.series-pad'), 10);
+
+    return {
+      field: row.dataset.field,
+      mode: val('.series-mode') === 'fixed' ? 'fixed' : 'number',
+      start: Number.isFinite(start) ? start : 0,
+      // An empty or non-numeric step means "count by one"; an explicit 0 is honoured
+      step: Number.isFinite(step) ? step : 1,
+      pad: Number.isFinite(pad) ? Math.min(Math.max(pad, 0), 12) : 0,
+      prefix: val('.series-prefix'),
+      suffix: val('.series-suffix'),
+      value: val('.series-value'),
+    };
+  });
+}
+
+/**
+ * Read the requested label count, clamped to the supported range
+ * @returns {number}
+ */
+function readSeriesCount() {
+  const count = parseInt($('#series-count').value, 10);
+  if (!Number.isFinite(count) || count < 1) return 0;
+  return Math.min(count, MAX_SERIES_COUNT);
+}
+
+/**
+ * Refresh the sample values under each field and the footer summary
+ */
+function updateSeriesPreviews() {
+  const count = readSeriesCount();
+  const configs = readSeriesConfigs();
+  const rows = Array.from($$('#series-fields .series-field'));
+
+  configs.forEach((config, i) => {
+    const el = rows[i]?.querySelector('.series-preview');
+    if (!el) return;
+    el.textContent = count > 0 ? seriesPreview(config, count) : 'Enter a label count';
+  });
+
+  const summary = $('#series-summary');
+  const append = $('#series-apply-mode').value === 'append';
+  if (count === 0) {
+    summary.textContent = 'Enter how many labels to generate';
+  } else if (append) {
+    summary.textContent = `Adds ${count} label${count !== 1 ? 's' : ''} to the existing ${state.templateData.length}`;
+  } else {
+    summary.textContent = `Creates ${count} label${count !== 1 ? 's' : ''}`;
+  }
+}
+
+/**
+ * Generate the series and load it into the template data table
+ */
+function handleGenerateSeries() {
+  const configs = readSeriesConfigs();
+  const count = readSeriesCount();
+  const { records, errors } = generateSeries(configs, count);
+
+  if (records.length === 0) {
+    showToast(errors[0] || 'Nothing to generate', 'warning');
+    return;
+  }
+
+  const append = $('#series-apply-mode').value === 'append';
+  if (!append && state.templateData.length > 0 &&
+      !confirm(`Replace the existing ${state.templateData.length} record(s) with ${records.length} generated label(s)?`)) {
+    return;
+  }
+
+  // Remember the settings so reopening the dialog picks up where the user left off
+  for (const config of configs) {
+    state.seriesConfig[config.field] = { ...config };
+  }
+
+  state.templateData = append ? state.templateData.concat(records) : records;
+  state.selectedRecords = state.templateData.map((_, i) => i);
+  updateTemplateDataTable();
+  hideSeriesDialog();
+
+  const message = `Generated ${records.length} label${records.length !== 1 ? 's' : ''}`;
+  showToast(errors.length > 0 ? `${message} - ${errors[0]}` : message, errors.length > 0 ? 'warning' : 'success');
+  setStatus(message);
 }
 
 /**
@@ -5423,7 +5672,9 @@ function handleKeyDown(e) {
 
   // Escape to deselect or close modals
   if (e.key === 'Escape') {
-    if ($('#shortcuts-modal').classList.contains('hidden') === false) {
+    if ($('#series-dialog').classList.contains('hidden') === false) {
+      hideSeriesDialog();
+    } else if ($('#shortcuts-modal').classList.contains('hidden') === false) {
       hideShortcutsModal();
     } else if ($('#info-dialog').classList.contains('hidden') === false) {
       hideInfoDialog();
@@ -8032,6 +8283,18 @@ function init() {
     if (confirm('Clear all template data?')) {
       clearTemplateData();
     }
+  });
+
+  // Series generator
+  $('#template-generate-series').addEventListener('click', showSeriesDialog);
+  $('#series-close').addEventListener('click', hideSeriesDialog);
+  $('#series-cancel').addEventListener('click', hideSeriesDialog);
+  $('#series-generate').addEventListener('click', handleGenerateSeries);
+  $('#series-count').addEventListener('input', updateSeriesPreviews);
+  $('#series-apply-mode').addEventListener('change', updateSeriesPreviews);
+  $('#series-dialog').addEventListener('click', (e) => {
+    // Click the backdrop to dismiss
+    if (e.target === $('#series-dialog')) hideSeriesDialog();
   });
 
   // Template preview

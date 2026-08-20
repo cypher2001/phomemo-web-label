@@ -402,6 +402,51 @@ headers should match your field names (e.g.,
 alt="CSV imported" />
 <figcaption aria-hidden="true">CSV imported</figcaption>
 </figure>
+<h3 id="generating-a-numbered-series">Generating a Numbered
+Series</h3>
+<p>To print a run of labels numbered 1 to 100 - serial numbers, asset
+tags, ticket stubs - you do not need a CSV. Put the same field in every
+element that should carry the number, and let the app fill in the
+values.</p>
+<ol type="1">
+<li>Add a text element containing a field, for example
+<code>Item {{SN}}</code>.</li>
+<li>Add a QR code that uses the same field in its data, for example
+<code>https://example.com/{{SN}}</code>.</li>
+<li>Open <strong>Manage Data</strong> and click <strong>Generate
+Series</strong>.</li>
+</ol>
+<figure>
+<img src="screenshots/07-series-generator/02-series-dialog-configured.png"
+alt="Generate Series dialog" />
+<figcaption aria-hidden="true">Generate Series dialog</figcaption>
+</figure>
+<p>Set <strong>Labels</strong> to the number you want to print, then
+configure each field:</p>
+<ul>
+<li><strong>Start</strong> - the first number in the run.</li>
+<li><strong>Step</strong> - how much to add per label. A negative step
+counts down.</li>
+<li><strong>Digits</strong> - pads with leading zeros, so <code>3</code>
+prints <code>001</code>.</li>
+<li><strong>Prefix</strong> / <strong>Suffix</strong> - text wrapped
+around the number, such as <code>SN-</code>.</li>
+<li><strong>Same on every label</strong> - use one fixed value instead
+of counting, handy for a batch or lot code.</li>
+</ul>
+<p>Sample values appear under each field as you type, so you can see the
+run before generating it. <strong>Existing data</strong> chooses whether
+the run replaces the current records or is added to them.</p>
+<p>Click <strong>Generate</strong> to fill the table, then <strong>Preview
+Labels</strong> to check the result or <strong>Print All</strong> to
+print the run.</p>
+<figure>
+<img src="screenshots/07-series-generator/03-generated-records.png"
+alt="Generated records" />
+<figcaption aria-hidden="true">Generated records</figcaption>
+</figure>
+<p>Because the text and the QR code both use <code>{{SN}}</code>, the
+printed number and the code it encodes stay in step on every label.</p>
 <h3 id="previewing-labels">Previewing Labels</h3>
 <p>Click <strong>Preview</strong> to see all your labels rendered with
 the data. Click any thumbnail to see it full-size.</p>

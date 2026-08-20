@@ -28,6 +28,18 @@ export async function dismissInfoDialog(page: Page) {
   }
 }
 
+/**
+ * Dismiss the browser-compatibility overlay.
+ * Headless Chromium has no Web Bluetooth, so the app shows this on load.
+ */
+export async function dismissCompatibilityWarning(page: Page) {
+  const dismissBtn = page.locator('#compatibility-warning #dismiss-warning-btn');
+  if (await dismissBtn.count()) {
+    await dismissBtn.click();
+    await page.waitForTimeout(200);
+  }
+}
+
 /** Deselect all elements by pressing Escape */
 export async function deselectAll(page: Page) {
   await page.keyboard.press('Escape');

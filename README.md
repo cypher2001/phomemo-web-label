@@ -35,6 +35,8 @@ python3 -m http.server 8080
 
 **Templates & Batch Printing** - Variable fields with `{{FieldName}}` syntax, CSV import, preview grid, and batch printing with progress tracking.
 
+**Incremental Numbering** - Generate a run of sequentially numbered labels without a CSV. Set a count, start, step, zero-padding, and prefix/suffix per field, and every element sharing that field - text, barcode, or QR code - increments together.
+
 **Instant Expressions** - Dynamic values at print time using `[[expression]]` syntax: `[[date]]`, `[[time]]`, `[[datetime]]`, or custom formats like `[[date|MM/DD/YYYY]]`. Works in text, barcodes, and QR codes.
 
 **Print Preview** - Toggle dither preview to see exact thermal print output before printing.

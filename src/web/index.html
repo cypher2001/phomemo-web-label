@@ -1595,6 +1595,10 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           Add Row
         </button>
+        <button id="template-generate-series" class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium flex items-center gap-1.5" title="Fill the table with incrementing values">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
+          Generate Series
+        </button>
         <button id="template-clear-all" class="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium">
           Clear All
         </button>
@@ -1625,6 +1629,48 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           Print All
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Series Generator Dialog -->
+  <div id="series-dialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[75] p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900">Generate Series</h3>
+          <p class="text-sm text-gray-500">Print a run of labels with incrementing values</p>
+        </div>
+        <button id="series-close" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-4 border-b border-gray-200 flex flex-wrap items-end gap-4">
+        <div>
+          <label for="series-count" class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Labels</label>
+          <input type="number" id="series-count" min="1" max="10000" value="10"
+            class="w-28 px-2 py-1.5 text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400">
+        </div>
+        <div>
+          <label for="series-apply-mode" class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Existing data</label>
+          <select id="series-apply-mode"
+            class="px-2 py-1.5 text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-400">
+            <option value="replace">Replace</option>
+            <option value="append">Append</option>
+          </select>
+        </div>
+        <p class="text-xs text-gray-400 flex-1 min-w-[12rem]">Every field below gets its own value on each label. Use the same field in text and QR to keep them in sync.</p>
+      </div>
+
+      <div id="series-fields" class="flex-1 overflow-auto p-4 space-y-3"></div>
+
+      <div class="p-4 border-t border-gray-200 flex items-center justify-between gap-3">
+        <span id="series-summary" class="text-sm text-gray-500"></span>
+        <div class="flex items-center gap-2">
+          <button id="series-cancel" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium">Cancel</button>
+          <button id="series-generate" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">Generate</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2143,7 +2189,7 @@
     pdfjsModule.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsModule;
   </script>
-  <script type="module" src="app.js?v=151"></script>
+  <script type="module" src="app.js?v=152"></script>
   <script>
     // Show body once styles are ready
     requestAnimationFrame(() => {

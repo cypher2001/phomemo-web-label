@@ -157,6 +157,32 @@ Click **Import CSV** and select your file. The CSV headers should match your fie
 
 ![CSV imported](screenshots/04-templates-batch/04-csv-data-imported.png)
 
+### Generating a Numbered Series
+
+To print a run of labels numbered 1 to 100 - serial numbers, asset tags, ticket stubs - you do not need a CSV. Put the same field in every element that should carry the number, and let the app fill in the values.
+
+1. Add a text element containing a field, for example `Item {{SN}}`.
+2. Add a QR code that uses the same field in its data, for example `https://example.com/{{SN}}`.
+3. Open **Manage Data** and click **Generate Series**.
+
+![Generate Series dialog](screenshots/07-series-generator/02-series-dialog-configured.png)
+
+Set **Labels** to the number you want to print, then configure each field:
+
+- **Start** - the first number in the run.
+- **Step** - how much to add per label. A negative step counts down.
+- **Digits** - pads with leading zeros, so `3` prints `001`.
+- **Prefix** / **Suffix** - text wrapped around the number, such as `SN-`.
+- **Same on every label** - use one fixed value instead of counting, handy for a batch or lot code.
+
+Sample values appear under each field as you type, so you can see the run before generating it. **Existing data** chooses whether the run replaces the current records or is added to them.
+
+Click **Generate** to fill the table, then **Preview Labels** to check the result or **Print All** to print the run.
+
+![Generated records](screenshots/07-series-generator/03-generated-records.png)
+
+Because the text and the QR code both use `{{SN}}`, the printed number and the code it encodes stay in step on every label.
+
 ### Previewing Labels
 
 Click **Preview** to see all your labels rendered with the data. Click any thumbnail to see it full-size.
