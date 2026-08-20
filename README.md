@@ -2,7 +2,7 @@
 
 A free, browser-based label designer for Phomemo thermal printers. No drivers needed - connects via Bluetooth or USB.
 
-**Try it now: https://phomymo.affordablemagic.net**
+
 
 <p>
   <img src="screenshot.png" alt="Phomymo Label Designer" width="600" />
@@ -141,15 +141,6 @@ Both keep `index.html` uncached while allowing `.js` to be cached indefinitely, 
 
 **When you change a module, bump its `?v=` everywhere it is imported.** Browsers hold `.js` for a year under `immutable` and will not revalidate, so a new `app.js` paired with a stale dependency fails at module-link time and the whole app goes dead - no canvas, no working buttons. Every import must carry a version, and all importers of a module must agree on it; `tests/10-module-versions.spec.ts` enforces both.
 
-## Acknowledgments
-
-Protocol research and inspiration:
-
-- [vivier/phomemo-tools](https://github.com/vivier/phomemo-tools) - CUPS driver with reverse-engineered protocol
-- [yaddran/thermal-print](https://github.com/yaddran/thermal-print) - Printer status query commands
-- [ooki1jp](https://github.com/vivier/phomemo-tools/issues/27#issuecomment-3850158579) - M04AS/M04S protocol reverse-engineering
-
-Libraries: [JsBarcode](https://github.com/lindell/JsBarcode), [QRCode.js](https://github.com/davidshimjs/qrcodejs), [jsPDF](https://github.com/parallax/jsPDF)
 
 ## Support the Project
 
