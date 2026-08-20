@@ -126,6 +126,17 @@ phomymo/
 └── README.md
 ```
 
+## Deployment
+
+The app is a static site - there is nothing to build and no runtime dependencies. Serve the contents of `src/web/` over HTTPS (Web Bluetooth will not work over plain HTTP).
+
+Two host configs live in the repo, and they do not interfere with each other:
+
+- `src/web/_headers` - cache headers for Cloudflare Pages, which serves `src/web` as the site root.
+- `vercel.json` - points Vercel at `src/web`, skips the install and build steps, and sets the same cache headers. No dashboard configuration is needed; leave Vercel's Root Directory at the repository root so this file is picked up.
+
+Both keep `index.html` uncached while allowing `.js` to be cached indefinitely, which is why script tags carry a `?v=` cache-buster that is bumped whenever the file changes.
+
 ## Acknowledgments
 
 Protocol research and inspiration:
