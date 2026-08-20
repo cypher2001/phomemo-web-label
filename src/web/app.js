@@ -6192,10 +6192,6 @@ function checkCompatibility() {
               Donate
             </a>
           </div>
-          <a href="https://affordablemagic.net" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all">
-            <img src="https://affordablemagic.net/affordablemagic-400w.png" alt="Affordable Magic" class="h-4">
-            <span class="text-xs font-medium text-gray-700">An Affordable Magic Product</span>
-          </a>
         </div>
       </div>
     `;

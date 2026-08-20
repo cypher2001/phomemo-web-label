@@ -15,7 +15,7 @@ A guide to designing and printing labels with the Phomymo label designer.
 
 ## Getting Started
 
-Open [phomymo.affordablemagic.net](https://phomymo.affordablemagic.net) in Chrome, Edge, or another Chromium-based browser. The app works on desktop and Android - iOS is not supported due to Web Bluetooth limitations.
+Open the app in Chrome, Edge, or another Chromium-based browser. The app works on desktop and Android - iOS is not supported due to Web Bluetooth limitations.
 
 ![App loaded](screenshots/01-getting-started/01-app-loaded.png)
 

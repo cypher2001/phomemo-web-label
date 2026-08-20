@@ -11,17 +11,15 @@ A free, browser-based label designer for Phomemo thermal printers. No drivers ne
 
 ## Quick Start
 
-1. Open https://phomymo.affordablemagic.net in Chrome (or any Chromium-based browser)
-2. Click **Connect** to pair with your printer via Bluetooth (or **USB** for PM-241)
-3. Design your label and click **Print**
-
-To run locally (Web Bluetooth requires HTTPS or localhost):
+Serve `src/web/` and open it in Chrome. Web Bluetooth requires HTTPS or localhost, so a plain file:// URL will not work:
 
 ```bash
 cd src/web
 python3 -m http.server 8080
 # Open http://localhost:8080 in Chrome
 ```
+
+Then click **Connect** to pair with your printer via Bluetooth (or **USB** for PM-241), design your label, and click **Print**.
 
 A full walkthrough with screenshots lives in the [user manual](docs/manual.md), also served alongside the app at `/docs/manual.html`.
 
