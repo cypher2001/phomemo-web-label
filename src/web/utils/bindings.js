@@ -8,7 +8,7 @@ import {
   validateHeight,
   validateRotation,
   validatePosition,
-} from './validation.js';
+} from './validation.js?v=102';
 
 // DOM helpers
 const $ = (sel) => document.querySelector(sel);

@@ -2,7 +2,7 @@
  * localStorage persistence for Phomymo label designs
  */
 
-import { STORAGE_KEYS } from './constants.js';
+import { STORAGE_KEYS } from './constants.js?v=106';
 
 const STORAGE_KEY = STORAGE_KEYS.DESIGNS;
 const MULTI_LABEL_PRESETS_KEY = STORAGE_KEYS.MULTI_LABEL_PRESETS;

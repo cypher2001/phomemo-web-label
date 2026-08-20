@@ -3,8 +3,8 @@
  * Supports multi-element rendering with transforms
  */
 
-import { drawHandles, drawGroupHandles } from './handles.js?v=5';
-import { logError, ErrorLevel } from './utils/errors.js';
+import { drawHandles, drawGroupHandles } from './handles.js?v=101';
+import { logError, ErrorLevel } from './utils/errors.js?v=101';
 
 // Pixels per mm (203 DPI ≈ 8 px/mm)
 const PX_PER_MM = 8;

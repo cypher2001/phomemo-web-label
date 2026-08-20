@@ -4,10 +4,10 @@
  * v116
  */
 
-import { CanvasRenderer } from './canvas.js?v=115';
-import { BLETransport } from './ble.js?v=103';
-import { USBTransport } from './usb.js?v=101';
-import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=128';
+import { CanvasRenderer } from './canvas.js?v=116';
+import { BLETransport } from './ble.js?v=104';
+import { USBTransport } from './usb.js?v=102';
+import { print, printDensityTest, isDSeriesPrinter, isP12Printer, isA30Printer, isTapePrinter, isPM241Printer, isTSPLPrinter, isRotatedPrinter, getPrinterWidthBytes, getPrinterDpi, getPrinterAlignment, getPrinterDescription, isDeviceRecognized, getMatchedPattern, loadPrinterDefinitions, getAllPrinterDefinitions, getPrinterDefinition, getCustomPrinterDefinitions, saveCustomPrinterDefinition, deleteCustomPrinterDefinition, isBuiltinPrinter, resetBuiltinPrinter, getAvailableProtocols, getAvailableLabelPresets, getDetectedDefinition } from './printer.js?v=129';
 import {
   createTextElement,
   createImageElement,
@@ -36,7 +36,7 @@ import {
   collapseToSingleZone,
   hasElementsInHigherZones,
   removeElementsInHigherZones,
-} from './elements.js?v=100';
+} from './elements.js?v=101';
 import {
   HandleType,
   getHandleAtPoint,
@@ -48,13 +48,13 @@ import {
   drawGroupHandles,
   calculateGroupResize,
   calculateGroupRotation,
-} from './handles.js?v=100';
+} from './handles.js?v=101';
 import {
   saveDesign,
   loadDesign,
   listDesigns,
   deleteDesign,
-} from './storage.js?v=100';
+} from './storage.js?v=101';
 import {
   extractFields,
   hasTemplateFields,
@@ -68,7 +68,7 @@ import {
   seriesPreview,
   substituteLongestValues,
   MAX_SERIES_COUNT,
-} from './templates.js?v=103';
+} from './templates.js?v=104';
 import {
   UNITS,
   isInches,
@@ -76,7 +76,7 @@ import {
   formatLength,
   formatSize,
   inputStep,
-} from './units.js?v=1';
+} from './units.js?v=2';
 import {
   ZOOM,
   TEXT,
@@ -97,7 +97,7 @@ import {
   D_SERIES_ROUND_LABELS,
   TAPE_LABEL_SIZES,
   PM241_LABEL_SIZES,
-} from './constants.js?v=105';
+} from './constants.js?v=106';
 import {
   bindCheckbox,
   bindToggleButton,
@@ -108,7 +108,7 @@ import {
   bindPositionInputs,
   bindAlignButtons,
   createBindingContext,
-} from './utils/bindings.js?v=100';
+} from './utils/bindings.js?v=101';
 import {
   configureErrorHandlers,
   safeAsync,
@@ -122,7 +122,7 @@ import {
   ErrorLevel,
   ErrorCodes,
   getErrorMessage,
-} from './utils/errors.js?v=100';
+} from './utils/errors.js?v=101';
 import {
   validateFontSize,
   validateImageScale,
@@ -142,7 +142,7 @@ import {
   validateCSVFile,
   validateJSONFile,
   validatePosition,
-} from './utils/validation.js?v=101';
+} from './utils/validation.js?v=102';
 
 // DOM helpers
 const $ = (sel) => document.querySelector(sel);

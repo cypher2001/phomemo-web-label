@@ -137,7 +137,9 @@ Two host configs live in the repo, and they do not interfere with each other:
 - `src/web/_headers` - cache headers for Cloudflare Pages, which serves `src/web` as the site root.
 - `vercel.json` - points Vercel at `src/web`, skips the install and build steps, and sets the same cache headers. No dashboard configuration is needed; leave Vercel's Root Directory at the repository root so this file is picked up.
 
-Both keep `index.html` uncached while allowing `.js` to be cached indefinitely, which is why script tags carry a `?v=` cache-buster that is bumped whenever the file changes.
+Both keep `index.html` uncached while allowing `.js` to be cached indefinitely, which is why every module is loaded through a `?v=` cache-buster.
+
+**When you change a module, bump its `?v=` everywhere it is imported.** Browsers hold `.js` for a year under `immutable` and will not revalidate, so a new `app.js` paired with a stale dependency fails at module-link time and the whole app goes dead - no canvas, no working buttons. Every import must carry a version, and all importers of a module must agree on it; `tests/10-module-versions.spec.ts` enforces both.
 
 ## Acknowledgments
 

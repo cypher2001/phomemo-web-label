@@ -3,7 +3,7 @@
  * Provides resize corners/edges and rotation handle
  */
 
-import { HANDLES } from './constants.js';
+import { HANDLES } from './constants.js?v=106';
 
 // Use constants for handle configuration
 const HANDLE_SIZE = HANDLES.SIZE;

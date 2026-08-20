@@ -8,7 +8,7 @@
  * - Handles timing issues common with BLE GATT connections
  */
 
-import { BLE } from './constants.js';
+import { BLE } from './constants.js?v=106';
 
 // Printer query commands (format: [0x1F, 0x11, X])
 const QUERY_COMMANDS = {
