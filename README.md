@@ -23,6 +23,8 @@ python3 -m http.server 8080
 # Open http://localhost:8080 in Chrome
 ```
 
+A full walkthrough with screenshots lives in the [user manual](docs/manual.md), also served alongside the app at `/docs/manual.html`.
+
 **Requires:** Chrome, Edge, or another Chromium-based browser. Web Bluetooth is not available in Firefox or Safari. Android Chrome is supported with full touch UI; iOS is not supported. PM-241 printers require USB (WebUSB).
 
 ## Features
@@ -31,15 +33,28 @@ python3 -m http.server 8080
 
 **Editing** - Drag to move, corner/edge resize handles, rotation. Multi-select (Shift+click), grouping (Ctrl/Cmd+G), undo/redo, keyboard nudge, layer ordering, clipboard image paste (Ctrl/Cmd+V).
 
-**Label Sizes** - Preset sizes for each printer type, round labels, custom dimensions. Auto-switches based on connected printer. Multi-label rolls with clone or individual zone modes. Work in millimetres or inches - switch in Print Settings to get common inch stock (4x6, 2x1, 2.25x1.25 and more) as presets and to enter fractional inch sizes directly.
+**Label Sizes** - Preset sizes for each printer type, round labels, custom dimensions. Auto-switches based on connected printer. Multi-label rolls with clone or individual zone modes.
+
+**Millimetres or Inches** - Set **Units** in Print Settings. Inch mode offers common US stock as presets (4x6, 4x3, 4x2, 3x2, 2.25x1.25, 2x1, 1.5x1, 1x1, 1x0.5), filtered to what your printer is wide enough to print, and custom sizes accept decimals like `2.25`. Only the display and input change - designs are stored and printed at identical dimensions either way, so switching units never resizes anything.
 
 **Templates & Batch Printing** - Variable fields with `{{FieldName}}` syntax, CSV import, preview grid, and batch printing with progress tracking.
 
-**Incremental Numbering** - Generate a run of sequentially numbered labels without a CSV. Set a count, start, step, zero-padding, and prefix/suffix per field, and every element sharing that field - text, barcode, or QR code - increments together.
+**Incremental Numbering** - Print a run of sequentially numbered labels without building a CSV. See [Numbered Label Runs](#numbered-label-runs) below.
 
-**Fit Check** - Template fields render as `{{SN}}` on the canvas, which says nothing about how wide the real value will be. Fit Check swaps in the longest value each element will ever hold, so text sized against it fits every label in the run.
+**Fit Check** - A field renders on the canvas as `{{SN}}`, which says nothing about how wide the real value will be, so text sized against it can overflow once the data lands. Fit Check swaps in the longest value each element will ever hold, so a design that fits under it fits every label in the run.
 
-**Instant Expressions** - Dynamic values at print time using `[[expression]]` syntax: `[[date]]`, `[[time]]`, `[[datetime]]`, or custom formats like `[[date|MM/DD/YYYY]]`. Works in text, barcodes, and QR codes.
+**Instant Expressions** - Dynamic values evaluated at print time with `[[expression]]` syntax, usable in text, barcodes, and QR codes:
+
+| Expression | Result |
+|------------|--------|
+| `[[date]]` | Current date, `YYYY-MM-DD` |
+| `[[time]]` | Current time, `HH:mm:ss` |
+| `[[datetime]]` / `[[dt]]` | Both, `YYYY-MM-DD HH:mm:ss` |
+| `[[timestamp]]` / `[[ts]]` | Unix milliseconds |
+| `[[year]]` `[[month]]` `[[day]]` | Date parts, zero-padded |
+| `[[hour]]` `[[minute]]` `[[second]]` | Time parts, zero-padded (`[[min]]` and `[[sec]]` also work) |
+
+Add a custom format after a pipe - `[[date|MM/DD/YYYY]]`, `[[dt|DD.MM.YY hh:mm A]]`. Tokens: `YYYY YY MM M DD D HH H hh h mm m ss s A a Z`.
 
 **Print Preview** - Toggle dither preview to see exact thermal print output before printing.
 
@@ -48,6 +63,30 @@ python3 -m http.server 8080
 **Mobile** - Full-featured touch UI with pinch-to-zoom, two-finger pan, slide-up property panels, and complete feature parity with desktop.
 
 **Printer Status** - Live battery level, paper status, firmware version, and serial number with auto-query on connect.
+
+## Numbered Label Runs
+
+To print 100 labels numbered 1 to 100 - serial numbers, asset tags, ticket stubs - you don't need a CSV.
+
+1. **Add a field.** In a text element, click the purple **+ {{Field}}** button in the Properties panel, type a name like `SN`, and press Enter. You can also type `{{SN}}` yourself, wrapped in whatever else you need: `Item {{SN}}`.
+2. **Reuse it wherever the number should appear.** Add a QR code and pick `{{SN}}` from its own **+ {{Field}}** dropdown, or embed it in a URL: `https://example.com/{{SN}}`. Any elements sharing a field name stay in lockstep, so the printed number and the number the QR encodes always match. Give elements *different* field names and each gets its own counter.
+3. **Generate.** A purple **Template** button appears in the toolbar once a field is detected. Click it, then **Manage Data** > **Generate Series**.
+
+Set how many labels you want, then configure each field:
+
+| Setting | What it does |
+|---------|--------------|
+| Start | First number in the run |
+| Step | Added per label; negative counts down |
+| Digits | Zero-pads to this width, so `3` prints `001` |
+| Prefix / Suffix | Literal text around the number, e.g. `SN-` |
+| Same on every label | Pin the field to one fixed value instead of counting - useful for a batch or lot code |
+
+Sample values update live under each field (`SN-001, SN-002, SN-003 ... SN-100`), so you can check the run before committing to it. **Existing data** chooses whether the run replaces the current records or is appended to them, which lets you build a run in stages or mix generated numbers with an imported CSV.
+
+Click **Generate** to fill the table. Before printing, hit **Show Longest Values** under Fit Check in the template panel - the canvas switches to the widest value each element will ever hold, so you can confirm a ten-digit serial still fits. The Properties panel keeps showing the editable `{{SN}}` text while the canvas previews real data.
+
+Then **Preview Labels** to check the result, or **Print All** to print the run with a progress bar you can cancel.
 
 ## Supported Printers
 
@@ -115,18 +154,41 @@ phomymo/
 │       ├── elements.js    # Element management
 │       ├── handles.js     # Selection handles
 │       ├── storage.js     # localStorage persistence
-│       ├── templates.js   # Variable substitution & CSV
+│       ├── templates.js   # Fields, CSV, expressions, series generation
+│       ├── units.js       # Millimetre/inch conversion and formatting
 │       ├── ble.js         # Web Bluetooth transport
 │       ├── usb.js         # WebUSB transport
 │       ├── printer.js     # Print protocols
 │       ├── printers.json  # Built-in printer definitions
-│       ├── constants.js   # Shared constants
+│       ├── constants.js   # Shared constants and label presets
+│       ├── _headers       # Cloudflare Pages cache headers
+│       ├── docs/          # User manual, served at /docs/manual.html
 │       └── utils/
 │           ├── bindings.js   # Event binding helpers
 │           ├── errors.js     # Error handling
 │           └── validation.js # Input validation
+├── tests/                 # Playwright suite, also generates manual screenshots
+├── docs/                  # User manual source and screenshots
+├── vercel.json            # Vercel deployment config
 └── README.md
 ```
+
+All geometry is stored in millimetres at 8 px/mm (203 DPI). Inches are a display and input layer in `units.js`, so the canvas and print paths never see a unit setting.
+
+## Development
+
+The app has no build step. Serve `src/web/` and reload.
+
+Tests are Playwright end-to-end specs that drive the real UI in Chromium:
+
+```bash
+npm install
+npx playwright install chromium   # first run only
+npm test                          # headless
+npm run test:headed               # watch it drive the browser
+```
+
+The suite starts its own static server on port 8081, so nothing needs to be running first. It doubles as the screenshot generator for the user manual - running it rewrites the images under `docs/screenshots/`, so check those diffs before committing them.
 
 ## Deployment
 
