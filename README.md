@@ -29,7 +29,9 @@ A full walkthrough with screenshots lives in the [user manual](docs/manual.md), 
 
 **Design Elements** - Text (multiple fonts including local system fonts, sizes, styles, alignment, background colors), images with scale/aspect lock, barcodes (Code128, EAN-13, UPC-A, Code39), QR codes, and shapes (rectangle, ellipse, triangle, line) with solid, dithered grayscale, and stroke fills.
 
-**Editing** - Drag to move, corner/edge resize handles, rotation. Multi-select (Shift+click), grouping (Ctrl/Cmd+G), undo/redo, keyboard nudge, layer ordering, clipboard image paste (Ctrl/Cmd+V).
+**Editing** - Drag to move, corner/edge resize handles, rotation. Multi-select (Shift+click on the canvas or in the Elements list), grouping (Ctrl/Cmd+G), undo/redo, keyboard nudge, layer ordering, clipboard image paste (Ctrl/Cmd+V).
+
+**Align & Distribute** - With two or more elements selected, the **Align** toolbar button lines them up by left, centre, right, top, middle or bottom edge. With three or more, it can also space them evenly across or down, equalising the gaps between elements rather than between their centres, so uneven sizes still look evenly spaced. Alignment uses each element's visual bounding box, so rotated elements line up by what you see.
 
 **Label Sizes** - Preset sizes for each printer type, round labels, custom dimensions. Auto-switches based on connected printer. Multi-label rolls with clone or individual zone modes.
 

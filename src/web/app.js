@@ -26,6 +26,8 @@ import {
   getGroupMembers,
   getElementGroupId,
   getMultiElementBounds,
+  alignElements,
+  distributeElements,
   moveElements,
   scaleElements,
   rotateElements,
@@ -36,7 +38,7 @@ import {
   collapseToSingleZone,
   hasElementsInHigherZones,
   removeElementsInHigherZones,
-} from './elements.js?v=101';
+} from './elements.js?v=102';
 import {
   HandleType,
   getHandleAtPoint,
@@ -2745,6 +2747,60 @@ function updateToolbarState() {
   if (ungroupBtn) {
     ungroupBtn.disabled = !canUngroup;
   }
+
+  // Align: needs two elements to line up against each other
+  const alignBtn = $('#align-btn');
+  if (alignBtn) {
+    alignBtn.disabled = !hasMultipleSelected;
+    if (alignBtn.disabled) $('#align-dropdown')?.classList.add('hidden');
+  }
+  updateAlignAvailability();
+}
+
+/**
+ * Grey out the distribute actions until there are enough elements to spread
+ */
+function updateAlignAvailability() {
+  const canDistribute = state.selectedIds.length >= 3;
+
+  $$('.align-action').forEach(btn => {
+    const isDistribute = btn.dataset.alignAction.startsWith('distribute');
+    const disabled = isDistribute && !canDistribute;
+    btn.disabled = disabled;
+    btn.classList.toggle('opacity-30', disabled);
+    btn.classList.toggle('cursor-not-allowed', disabled);
+  });
+
+  const hint = $('#align-hint');
+  if (hint) hint.classList.toggle('hidden', canDistribute);
+}
+
+/**
+ * Apply an align or distribute action to the current selection
+ * @param {string} action - Value from the button's data-align attribute
+ */
+function handleAlignAction(action) {
+  if (state.selectedIds.length < 2) return;
+
+  const distributing = action.startsWith('distribute');
+  if (distributing && state.selectedIds.length < 3) return;
+
+  saveHistory();
+
+  state.elements = distributing
+    ? distributeElements(state.elements, state.selectedIds, action === 'distribute-h' ? 'horizontal' : 'vertical')
+    : alignElements(state.elements, state.selectedIds, action);
+
+  autoCloneIfEnabled();
+  updatePropertiesPanel();
+  render();
+
+  const labels = {
+    left: 'Aligned left', right: 'Aligned right', hcenter: 'Aligned centre',
+    top: 'Aligned top', bottom: 'Aligned bottom', vcenter: 'Aligned middle',
+    'distribute-h': 'Spaced evenly across', 'distribute-v': 'Spaced evenly down',
+  };
+  setStatus(labels[action] || 'Aligned');
 }
 
 /**
@@ -5684,11 +5740,33 @@ function updateElementsList() {
 
   // Add click handlers
   container.querySelectorAll('.element-list-item').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
       const id = btn.dataset.elementId;
-      selectElement(id);
+
+      if (e.shiftKey) {
+        // Shift+click builds a selection, matching the canvas. Keep the list
+        // open, and stop the event before the close-on-outside-click handler
+        // sees it - re-rendering the row would detach it mid-bubble
+        e.stopPropagation();
+        selectElement(id, true);
+        refreshElementsListSelection();
+        return;
+      }
+
+      selectElement(id, false);
       $('#elements-dropdown').classList.add('hidden');
     });
+  });
+}
+
+/**
+ * Repaint the selected highlight in the elements list without rebuilding it
+ */
+function refreshElementsListSelection() {
+  $$('#elements-list .element-list-item').forEach(btn => {
+    const selected = state.selectedIds.includes(btn.dataset.elementId);
+    btn.classList.toggle('bg-blue-50', selected);
+    btn.classList.toggle('text-blue-700', selected);
   });
 }
 
@@ -6647,9 +6725,9 @@ function populateMobileProps() {
       <div class="prop-group">
         <div class="prop-label">Horizontal Align</div>
         <div class="flex gap-2">
-          <button class="flex-1 py-2.5 border rounded ${(selected.align || 'left') === 'left' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align="left">Left</button>
-          <button class="flex-1 py-2.5 border rounded ${selected.align === 'center' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align="center">Center</button>
-          <button class="flex-1 py-2.5 border rounded ${selected.align === 'right' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align="right">Right</button>
+          <button class="flex-1 py-2.5 border rounded ${(selected.align || 'left') === 'left' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align-action="left">Left</button>
+          <button class="flex-1 py-2.5 border rounded ${selected.align === 'center' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align-action="center">Center</button>
+          <button class="flex-1 py-2.5 border rounded ${selected.align === 'right' ? 'bg-blue-100 border-blue-400' : 'border-gray-300 bg-gray-50'}" data-align-action="right">Right</button>
         </div>
       </div>
       <div class="prop-group">
@@ -7937,6 +8015,25 @@ function init() {
   });
 
   // Group/Ungroup
+  // Align & distribute
+  $('#align-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if ($('#align-btn').disabled) return;
+    updateAlignAvailability();
+    $('#align-dropdown').classList.toggle('hidden');
+  });
+  $$('.align-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      handleAlignAction(btn.dataset.alignAction);
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#align-dropdown') && !e.target.closest('#align-btn')) {
+      $('#align-dropdown')?.classList.add('hidden');
+    }
+  });
+
   $('#group-btn').addEventListener('click', handleGroup);
   $('#ungroup-btn').addEventListener('click', handleUngroup);
 

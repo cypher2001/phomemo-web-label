@@ -610,3 +610,95 @@ export function hasElementsInHigherZones(elements, maxZone) {
 export function removeElementsInHigherZones(elements, maxZone) {
   return elements.filter(el => (el.zone ?? 0) < maxZone);
 }
+
+/**
+ * Align multiple elements to a shared edge or axis
+ *
+ * Alignment is measured on each element's axis-aligned bounding box, so
+ * rotated elements line up by their visual extent rather than their
+ * untransformed corner. Elements move as a whole; nothing is resized.
+ *
+ * @param {Array} elements - All elements
+ * @param {Array} ids - IDs of the elements to align (2 or more)
+ * @param {string} edge - 'left'|'hcenter'|'right'|'top'|'vcenter'|'bottom'
+ * @returns {Array} - New elements array
+ */
+export function alignElements(elements, ids, edge) {
+  const selected = elements.filter(el => ids.includes(el.id));
+  if (selected.length < 2) return elements;
+
+  const group = getMultiElementBounds(selected);
+  if (!group) return elements;
+
+  // How far each element must move along one axis to reach the target
+  const offsetFor = (el) => {
+    const b = getElementBounds(el);
+    switch (edge) {
+      case 'left':    return { dx: group.x - b.x, dy: 0 };
+      case 'right':   return { dx: (group.x + group.width) - (b.x + b.width), dy: 0 };
+      case 'hcenter': return { dx: group.cx - (b.x + b.width / 2), dy: 0 };
+      case 'top':     return { dx: 0, dy: group.y - b.y };
+      case 'bottom':  return { dx: 0, dy: (group.y + group.height) - (b.y + b.height) };
+      case 'vcenter': return { dx: 0, dy: group.cy - (b.y + b.height / 2) };
+      default:        return { dx: 0, dy: 0 };
+    }
+  };
+
+  return elements.map(el => {
+    if (!ids.includes(el.id)) return el;
+    const { dx, dy } = offsetFor(el);
+    return { ...el, x: el.x + dx, y: el.y + dy };
+  });
+}
+
+/**
+ * Space elements evenly between the two outermost ones
+ *
+ * The outermost elements stay put and everything between them is spread so
+ * the gaps between bounding boxes are equal - which keeps spacing even when
+ * the elements are different sizes, unlike spacing centres equally.
+ *
+ * @param {Array} elements - All elements
+ * @param {Array} ids - IDs of the elements to distribute (3 or more)
+ * @param {string} axis - 'horizontal' or 'vertical'
+ * @returns {Array} - New elements array
+ */
+export function distributeElements(elements, ids, axis) {
+  const selected = elements.filter(el => ids.includes(el.id));
+  if (selected.length < 3) return elements;
+
+  const horizontal = axis === 'horizontal';
+  const measured = selected.map(el => ({ el, bounds: getElementBounds(el) }));
+
+  measured.sort((a, b) => horizontal
+    ? a.bounds.x - b.bounds.x
+    : a.bounds.y - b.bounds.y);
+
+  const first = measured[0].bounds;
+  const last = measured[measured.length - 1].bounds;
+
+  const span = horizontal
+    ? (last.x + last.width) - first.x
+    : (last.y + last.height) - first.y;
+
+  const totalSize = measured.reduce((sum, m) =>
+    sum + (horizontal ? m.bounds.width : m.bounds.height), 0);
+
+  // Leftover space shared equally between the gaps
+  const gap = (span - totalSize) / (measured.length - 1);
+
+  const moves = new Map();
+  let cursor = horizontal ? first.x : first.y;
+
+  for (const { el, bounds } of measured) {
+    const current = horizontal ? bounds.x : bounds.y;
+    moves.set(el.id, cursor - current);
+    cursor += (horizontal ? bounds.width : bounds.height) + gap;
+  }
+
+  return elements.map(el => {
+    if (!moves.has(el.id)) return el;
+    const delta = moves.get(el.id);
+    return horizontal ? { ...el, x: el.x + delta } : { ...el, y: el.y + delta };
+  });
+}

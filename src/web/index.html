@@ -540,6 +540,49 @@
 
       <div class="toolbar-divider hidden sm:block"></div>
 
+      <!-- Align & Distribute -->
+      <div class="relative">
+        <button id="align-btn" class="toolbar-btn" disabled title="Align & distribute (select 2 or more)">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16M9 8h11M9 16h7"/></svg>
+          <span class="hidden sm:inline">Align</span>
+        </button>
+        <div id="align-dropdown" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-2">
+          <div class="text-[10px] text-gray-400 uppercase tracking-wide mb-1 px-1">Align</div>
+          <div class="grid grid-cols-3 gap-1 mb-2">
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="left" title="Align left">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16M8 8h9M8 16h5"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="hcenter" title="Align horizontal centre">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16M7 8h10M9 16h6"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="right" title="Align right">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 4v16M7 8h9M11 16h5"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="top" title="Align top">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16M8 8v9M16 8v5"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="vcenter" title="Align vertical centre">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16M8 7v10M16 9v6"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="bottom" title="Align bottom">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20h16M8 7v9M16 11v5"/></svg>
+            </button>
+          </div>
+          <div class="text-[10px] text-gray-400 uppercase tracking-wide mb-1 px-1">Distribute</div>
+          <div class="grid grid-cols-2 gap-1">
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="distribute-h" title="Space evenly across">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16M12 7v10M20 4v16"/></svg>
+            </button>
+            <button class="align-action p-2 rounded hover:bg-gray-100 text-gray-700" data-align-action="distribute-v" title="Space evenly down">
+              <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16M7 12h10M4 20h16"/></svg>
+            </button>
+          </div>
+          <p id="align-hint" class="text-[10px] text-gray-400 mt-2 px-1 max-w-[9rem] leading-snug">Distributing needs 3 or more.</p>
+        </div>
+      </div>
+
+      <div class="toolbar-divider hidden sm:block"></div>
+
       <!-- Save/Load/Export -->
       <button id="save-btn" class="toolbar-btn" title="Save">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
@@ -2192,7 +2235,7 @@
     pdfjsModule.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
     window.pdfjsLib = pdfjsModule;
   </script>
-  <script type="module" src="app.js?v=157"></script>
+  <script type="module" src="app.js?v=158"></script>
   <script>
     // Show body once styles are ready
     requestAnimationFrame(() => {
