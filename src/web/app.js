@@ -63,14 +63,17 @@ import {
   substituteFields,
   substituteFieldsByZone,
   parseCSV,
+  toCSV,
   createEmptyRecord,
   hasExpressions,
   evaluateExpressions,
   generateSeries,
   seriesPreview,
   substituteLongestValues,
+  lastSeriesNumber,
+  nextSeriesStart,
   MAX_SERIES_COUNT,
-} from './templates.js?v=104';
+} from './templates.js?v=105';
 import {
   UNITS,
   isInches,
@@ -191,6 +194,8 @@ const state = {
   selectedRecords: [],    // Indices of selected records for printing
   currentPreviewIndex: 0, // Current label index in full preview
   seriesConfig: {},       // Series generator settings, keyed by field name
+  seriesMemory: {},       // Where each field's last printed run ended
+  seriesSource: null,     // Configs that produced the current template data
   worstCasePreview: false, // Render each element's longest value, for sizing
   // Inline text editing state
   editingTextId: null,    // ID of text element being inline-edited
@@ -1680,6 +1685,7 @@ function deleteTemplateRecord(index) {
 function clearTemplateData() {
   state.templateData = [];
   state.selectedRecords = [];
+  state.seriesSource = null;
   updateTemplateDataTable();
 }
 
@@ -1886,6 +1892,7 @@ function importCSVData(csvString) {
 
   state.templateData = mappedRecords;
   state.selectedRecords = mappedRecords.map((_, i) => i);
+  state.seriesSource = null; // imported rows did not come from the generator
   updateTemplateDataTable();
   setStatus(`Imported ${mappedRecords.length} records`);
 }
@@ -1905,13 +1912,82 @@ const SERIES_DEFAULTS = {
   value: '',
 };
 
+// Series settings and printed-run history, remembered between visits
+const SERIES_STORAGE_KEY = 'phomymo_series';
+
+/**
+ * Restore the series generator's settings and printed-run history
+ */
+function loadSeriesState() {
+  const stored = safeJsonParse(safeStorageGet(SERIES_STORAGE_KEY), null);
+  if (!stored) return;
+  if (stored.config && typeof stored.config === 'object') state.seriesConfig = stored.config;
+  if (stored.memory && typeof stored.memory === 'object') state.seriesMemory = stored.memory;
+}
+
+/**
+ * Persist the series generator's settings and printed-run history
+ */
+function saveSeriesState() {
+  safeStorageSet(SERIES_STORAGE_KEY, safeJsonStringify({
+    config: state.seriesConfig,
+    memory: state.seriesMemory,
+  }));
+}
+
 /**
  * Get the series config for a field, falling back to defaults
+ *
+ * When a run of this field has already been printed, the start value comes
+ * from where that run ended - reissuing numbers that are already stuck to
+ * something is worse than having to reset deliberately.
+ *
  * @param {string} field - Field name
  * @returns {Object} - Series config
  */
 function getSeriesConfig(field) {
-  return { field, ...SERIES_DEFAULTS, ...(state.seriesConfig[field] || {}) };
+  const config = { field, ...SERIES_DEFAULTS, ...(state.seriesConfig[field] || {}) };
+
+  const memory = state.seriesMemory[field];
+  if (memory && config.mode === 'number' && Number.isFinite(memory.next)) {
+    config.start = memory.next;
+  }
+
+  return config;
+}
+
+/**
+ * Record how far a printed run got, so the next one continues from there
+ * @param {Array} printedRecords - The records that actually reached the printer
+ */
+function recordSeriesProgress(printedRecords) {
+  if (!state.seriesSource || !printedRecords || printedRecords.length === 0) return;
+
+  let changed = false;
+  for (const config of state.seriesSource) {
+    if (config.mode === 'fixed') continue;
+
+    const last = lastSeriesNumber(config, printedRecords);
+    const next = nextSeriesStart(config, printedRecords);
+    if (last === null || next === null) continue;
+
+    state.seriesMemory[config.field] = { last, next, updatedAt: Date.now() };
+    changed = true;
+  }
+
+  if (changed) saveSeriesState();
+}
+
+/**
+ * Forget a field's printed history, so its next run starts from scratch
+ * @param {string} field - Field name
+ */
+function resetSeriesMemory(field) {
+  if (!state.seriesMemory[field]) return;
+  delete state.seriesMemory[field];
+  saveSeriesState();
+  renderSeriesFields();
+  setStatus(`Reset the run history for {{${field}}}`);
 }
 
 /**
@@ -1981,6 +2057,11 @@ function renderSeriesFields() {
         <input type="text" class="series-value ${input}">
       </div>
 
+      <div class="series-memory hidden flex items-center gap-2 mt-2">
+        <span class="series-memory-text text-[11px] text-purple-700"></span>
+        <button type="button" class="series-reset text-[11px] text-purple-500 underline hover:text-purple-700">Start over</button>
+      </div>
+
       <p class="series-preview text-xs text-gray-500 mt-2 font-mono truncate"></p>
     </div>
   `;
@@ -2003,6 +2084,18 @@ function renderSeriesFields() {
     row.querySelector('.series-value').value = c.value;
     row.querySelector('.series-number-opts').classList.toggle('hidden', isFixed);
     row.querySelector('.series-fixed-opts').classList.toggle('hidden', !isFixed);
+
+    // Show where the last printed run ended, and offer to ignore it
+    const memory = state.seriesMemory[field];
+    const memoryEl = row.querySelector('.series-memory');
+    const showMemory = !!memory && !isFixed && Number.isFinite(memory.next);
+    memoryEl.classList.toggle('hidden', !showMemory);
+    if (showMemory) {
+      const when = new Date(memory.updatedAt);
+      const date = Number.isFinite(when.getTime()) ? when.toLocaleDateString() : 'earlier';
+      row.querySelector('.series-memory-text').textContent =
+        `Continuing after ${memory.last}, printed ${date}`;
+    }
   });
 
   bindSeriesFieldEvents();
@@ -2025,6 +2118,10 @@ function bindSeriesFieldEvents() {
     // Any value change refreshes the previews
     Array.from(row.querySelectorAll('input')).forEach(input => {
       input.addEventListener('input', updateSeriesPreviews);
+    });
+
+    row.querySelector('.series-reset').addEventListener('click', () => {
+      resetSeriesMemory(row.dataset.field);
     });
   });
 }
@@ -2113,6 +2210,8 @@ function handleGenerateSeries() {
   for (const config of configs) {
     state.seriesConfig[config.field] = { ...config };
   }
+  state.seriesSource = configs.map(c => ({ ...c }));
+  saveSeriesState();
 
   state.templateData = append ? state.templateData.concat(records) : records;
   state.selectedRecords = state.templateData.map((_, i) => i);
@@ -2163,6 +2262,30 @@ function updateWorstCaseButton() {
     const el = $(id);
     if (el) el.textContent = on ? 'Showing Longest Values' : 'Show Longest Values';
   }
+}
+
+/**
+ * Download the current template records as a CSV file
+ */
+function exportTemplateCSV() {
+  if (state.templateData.length === 0) {
+    showToast('No records to export', 'warning');
+    return;
+  }
+
+  const csv = toCSV(state.templateFields, state.templateData);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${state.currentDesignName || 'phomymo-data'}-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  setStatus(`Exported ${state.templateData.length} record${state.templateData.length !== 1 ? 's' : ''}`);
 }
 
 /**
@@ -2334,7 +2457,7 @@ async function handleBatchPrint() {
 
   const btn = $('#template-print-btn');
   const originalText = btn.textContent;
-  const { density, feed, printerModel } = state.printSettings;
+  const { density, copies, feed, printerModel } = state.printSettings;
 
   // Calculate total prints based on multi-label mode
   const isMultiLabel = state.multiLabel.enabled;
@@ -2347,6 +2470,10 @@ async function handleBatchPrint() {
   const totalRows = isMultiLabel && !cloneMode
     ? Math.ceil(totalRecords / labelsAcross)
     : totalRecords;
+
+  // Rows finished, tracked outside the try so a failure part way through
+  // still records the labels that did reach the printer
+  let completedRows = 0;
 
   try {
     btn.disabled = true;
@@ -2420,18 +2547,29 @@ async function handleBatchPrint() {
         ? state.renderer.getRasterDataRaw(mergedElements, ditherMode)
         : state.renderer.getRasterData(mergedElements, printerWidth, 203, ditherMode, printerAlignment);
 
-      // Print
-      await print(state.transport, rasterData, {
-        isBLE: state.connectionType === 'ble',
-        deviceName,
-        printerModel,
-        density,
-        feed,
-        continuous: !!(state.labelSize?.continuous),
-        onProgress: (progress) => {
-          updatePrintProgress(rowIndex + 1, totalRows, `Sending data... ${progress}%`);
-        },
-      });
+      // Print, repeating for each requested copy
+      for (let copy = 1; copy <= copies; copy++) {
+        const copyText = copies > 1 ? ` copy ${copy}/${copies}` : '';
+
+        await print(state.transport, rasterData, {
+          isBLE: state.connectionType === 'ble',
+          deviceName,
+          printerModel,
+          density,
+          feed,
+          continuous: !!(state.labelSize?.continuous),
+          onProgress: (progress) => {
+            updatePrintProgress(rowIndex + 1, totalRows, `Sending data${copyText}... ${progress}%`);
+          },
+        });
+
+        if (copy < copies && !isPrintCancelled()) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+        if (isPrintCancelled()) break;
+      }
+
+      completedRows = rowIndex + 1;
 
       // Delay between prints
       if (rowIndex < totalRows - 1 && !isPrintCancelled()) {
@@ -2456,6 +2594,15 @@ async function handleBatchPrint() {
   } finally {
     btn.disabled = false;
     hidePrintProgress();
+
+    // Advance the remembered series position by whatever actually printed
+    const recordsPerRow = isMultiLabel && !cloneMode ? labelsAcross : 1;
+    const printedCount = Math.min(completedRows * recordsPerRow, recordsToPrint.length);
+    const printedRecords = recordsToPrint
+      .slice(0, printedCount)
+      .map(index => state.templateData[index])
+      .filter(Boolean);
+    recordSeriesProgress(printedRecords);
   }
 }
 
@@ -2473,7 +2620,7 @@ async function handlePrintSinglePreview() {
 
   const btn = $('#full-preview-print');
   const originalText = btn.textContent;
-  const { density, feed, printerModel } = state.printSettings;
+  const { density, copies, feed, printerModel } = state.printSettings;
 
   try {
     btn.disabled = true;
@@ -2507,20 +2654,28 @@ async function handlePrintSinglePreview() {
       ? state.renderer.getRasterDataRaw(mergedElements, ditherMode)
       : state.renderer.getRasterData(mergedElements, printerWidth, 203, ditherMode, printerAlignment);
 
-    // Print
-    await print(state.transport, rasterData, {
-      isBLE: state.connectionType === 'ble',
-      deviceName,
-      printerModel,
-      density,
-      feed,
-      continuous: !!(state.labelSize?.continuous),
-      onProgress: (progress) => {
-        btn.textContent = `Printing... ${progress}%`;
-      },
-    });
+    // Print, repeating for each requested copy
+    for (let copy = 1; copy <= copies; copy++) {
+      const copyText = copies > 1 ? ` ${copy}/${copies}` : '';
 
-    setStatus('Label printed!');
+      await print(state.transport, rasterData, {
+        isBLE: state.connectionType === 'ble',
+        deviceName,
+        printerModel,
+        density,
+        feed,
+        continuous: !!(state.labelSize?.continuous),
+        onProgress: (progress) => {
+          btn.textContent = `Printing${copyText}... ${progress}%`;
+        },
+      });
+
+      if (copy < copies) {
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
+    setStatus(copies > 1 ? `Printed ${copies} copies!` : 'Label printed!');
     btn.textContent = originalText;
 
   } catch (error) {
@@ -7811,6 +7966,9 @@ function init() {
   // Apply the restored unit to every dimension display and input
   updateUnitDisplay();
 
+  // Restore series settings and how far previous runs got
+  loadSeriesState();
+
   // Dither preview toggle (shows exact print output for all elements)
   const ditherPreviewBtn = $('#dither-preview-btn');
   const updatePreviewButtonState = () => {
@@ -8592,6 +8750,7 @@ function init() {
 
   // Template data actions
   $('#template-import-csv').addEventListener('click', () => $('#template-csv-input').click());
+  $('#template-export-csv').addEventListener('click', exportTemplateCSV);
   $('#template-csv-input').addEventListener('change', (e) => {
     if (e.target.files[0]) {
       handleCSVFileImport(e.target.files[0]);  // Validation inside function

@@ -626,3 +626,63 @@ function hasFieldsInElement(el) {
   if (el.qrData) extractFromString(el.qrData, fields);
   return fields.size > 0;
 }
+
+/**
+ * Find how far a printed run actually got for one field
+ *
+ * Works from the printed values rather than from a label count, so it stays
+ * correct when a run was cancelled part way, when generated records were
+ * appended to existing ones, or when the table mixes generated and imported
+ * rows. Values that do not match the config's prefix/suffix, or that are not
+ * numeric once those are stripped, are ignored.
+ *
+ * @param {Object} config - Series config for the field
+ * @param {Array} records - The records that were printed
+ * @returns {number|null} - Furthest number reached, or null if none matched
+ */
+export function lastSeriesNumber(config, records) {
+  if (!config || config.mode === 'fixed' || !Array.isArray(records)) return null;
+
+  const prefix = config.prefix ?? '';
+  const suffix = config.suffix ?? '';
+  // A negative step counts down, so "furthest along" is the smallest value
+  const descending = Number(config.step) < 0;
+
+  let furthest = null;
+
+  for (const record of records) {
+    const raw = record?.[config.field];
+    if (typeof raw !== 'string' && typeof raw !== 'number') continue;
+
+    let text = String(raw);
+    if (prefix) {
+      if (!text.startsWith(prefix)) continue;
+      text = text.slice(prefix.length);
+    }
+    if (suffix) {
+      if (!text.endsWith(suffix)) continue;
+      text = text.slice(0, text.length - suffix.length);
+    }
+    if (!/^-?\d+$/.test(text)) continue;
+
+    const value = parseInt(text, 10);
+    if (furthest === null || (descending ? value < furthest : value > furthest)) {
+      furthest = value;
+    }
+  }
+
+  return furthest;
+}
+
+/**
+ * Where a series should start next, given how far the last run got
+ * @param {Object} config - Series config for the field
+ * @param {Array} records - The records that were printed
+ * @returns {number|null} - Start value for the next run, or null
+ */
+export function nextSeriesStart(config, records) {
+  const last = lastSeriesNumber(config, records);
+  if (last === null) return null;
+  const step = config.step === undefined || config.step === '' ? 1 : Number(config.step);
+  return last + (Number.isFinite(step) && step !== 0 ? step : 1);
+}

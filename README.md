@@ -37,9 +37,9 @@ A full walkthrough with screenshots lives in the [user manual](docs/manual.md), 
 
 **Millimetres or Inches** - Set **Units** in Print Settings. Inch mode offers common US stock as presets (4x6, 4x3, 4x2, 3x2, 2.25x1.25, 2x1, 1.5x1, 1x1, 1x0.5), filtered to what your printer is wide enough to print, and custom sizes accept decimals like `2.25`. Only the display and input change - designs are stored and printed at identical dimensions either way, so switching units never resizes anything.
 
-**Templates & Batch Printing** - Variable fields with `{{FieldName}}` syntax, CSV import, preview grid, and batch printing with progress tracking.
+**Templates & Batch Printing** - Variable fields with `{{FieldName}}` syntax, CSV import and export, preview grid, and batch printing with progress tracking and per-label copies.
 
-**Incremental Numbering** - Print a run of sequentially numbered labels without building a CSV. See [Numbered Label Runs](#numbered-label-runs) below.
+**Incremental Numbering** - Print a run of sequentially numbered labels without building a CSV, and pick up where the last run finished rather than reissuing numbers already stuck to something. See [Numbered Label Runs](#numbered-label-runs) below.
 
 **Fit Check** - A field renders on the canvas as `{{SN}}`, which says nothing about how wide the real value will be, so text sized against it can overflow once the data lands. Fit Check swaps in the longest value each element will ever hold, so a design that fits under it fits every label in the run.
 
@@ -60,7 +60,7 @@ Add a custom format after a pipe - `[[date|MM/DD/YYYY]]`, `[[dt|DD.MM.YY hh:mm A
 
 **Export** - Save/load designs to browser storage, export/import as JSON, export to PDF or PNG.
 
-**Mobile** - Full-featured touch UI with pinch-to-zoom, two-finger pan, slide-up property panels, and complete feature parity with desktop.
+**Mobile** - Touch UI with pinch-to-zoom, two-finger pan, and slide-up property panels. Designing, templates, the series generator and printing all work; grouping and the align tools are desktop-only.
 
 **Printer Status** - Live battery level, paper status, firmware version, and serial number with auto-query on connect.
 
@@ -83,6 +83,12 @@ Set how many labels you want, then configure each field:
 | Same on every label | Pin the field to one fixed value instead of counting - useful for a batch or lot code |
 
 Sample values update live under each field (`SN-001, SN-002, SN-003 ... SN-100`), so you can check the run before committing to it. **Existing data** chooses whether the run replaces the current records or is appended to them, which lets you build a run in stages or mix generated numbers with an imported CSV.
+
+### Picking up where you left off
+
+Once a run has printed, the app remembers where each field reached. Reopen **Generate Series** and Start is already set past the last printed number, with a note saying what it is continuing after - so printing 1-100 today and coming back tomorrow gives you 101 onward instead of a second set of 1-100.
+
+The position comes from the values that actually reached the printer, so a run cancelled at label 63 resumes at 64, not 101. Use **Start over** next to that note to forget the history and begin the field again.
 
 Click **Generate** to fill the table. Before printing, hit **Show Longest Values** under Fit Check in the template panel - the canvas switches to the widest value each element will ever hold, so you can confirm a ten-digit serial still fits. The Properties panel keeps showing the editable `{{SN}}` text while the canvas previews real data.
 
@@ -207,7 +213,3 @@ Both keep `index.html` uncached while allowing `.js` to be cached indefinitely, 
 ## Support the Project
 
 If Phomymo is useful to you, consider [supporting HackerHomeLab on Ko-fi](https://ko-fi.com/hackerhomelab) to help fund ongoing development.
-
-## License
-
-MIT License - see LICENSE file for details.

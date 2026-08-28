@@ -72,6 +72,42 @@ test.describe.serial('Templates and Batch Printing', () => {
     await screenshot(page, CH, 4, 'csv-data-imported');
   });
 
+  test('export data back out as CSV', async ({ page }) => {
+    await page.click('#add-text');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    await page.locator('#prop-text-content').fill('{{Name}} - ${{Price}}');
+    await page.locator('#prop-text-content').dispatchEvent('input');
+    await page.waitForTimeout(500);
+
+    await page.click('#template-toolbar-btn');
+    await page.click('#template-manage-data');
+    const csvPath = path.join(__dirname, 'fixtures', 'sample.csv');
+    await page.locator('#template-csv-input').setInputFiles(csvPath);
+    await page.waitForTimeout(500);
+
+    const download = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('#template-export-csv'),
+    ]).then(([d]) => d);
+
+    expect(download.suggestedFilename()).toMatch(/\.csv$/);
+
+    const stream = await download.createReadStream();
+    const text = await new Promise<string>((resolve, reject) => {
+      let out = '';
+      stream.on('data', (c: Buffer) => { out += c.toString(); });
+      stream.on('end', () => resolve(out));
+      stream.on('error', reject);
+    });
+
+    // Header names the detected fields, and every imported row comes back
+    const lines = text.trim().split('\n');
+    expect(lines[0]).toBe('Name,Price');
+    expect(lines.length).toBeGreaterThan(1);
+  });
+
   test('preview labels', async ({ page }) => {
     // Full setup: template field + CSV data + preview
     await page.click('#add-text');
